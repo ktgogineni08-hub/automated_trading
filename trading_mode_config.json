@@ -1,0 +1,12 @@
+{
+  "mode": "backtest",
+  "timestamp": "2025-09-18T18:47:28.942156",
+  "settings": {
+    "start_date": "2025-08-19",
+    "end_date": "2025-09-18",
+    "initial_capital": 1000000.0,
+    "historical_data": true,
+    "live_trading": false,
+    "paper_trading": false
+  }
+}
