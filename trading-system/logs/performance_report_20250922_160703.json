@@ -1,0 +1,46 @@
+{
+  "period_hours": 1,
+  "generated_at": "2025-09-22T16:07:03.658750",
+  "system_metrics": {
+    "cpu_usage": {
+      "count": 2,
+      "avg": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "latest": 0.0
+    },
+    "memory_usage": {
+      "count": 2,
+      "avg": 0.1305103302001953,
+      "min": 0.130462646484375,
+      "max": 0.13055801391601562,
+      "latest": 0.13055801391601562
+    },
+    "thread_count": 2,
+    "file_handles": 2
+  },
+  "api_metrics": {},
+  "trade_metrics": {},
+  "strategy_metrics": {
+    "strategy_rsi_buy": {
+      "count": 10,
+      "avg": 0.8,
+      "min": 0.8,
+      "max": 0.8,
+      "latest": 0.8
+    }
+  },
+  "data_metrics": {},
+  "counters": {
+    "trades_successful": 10,
+    "signals_buy": 10
+  },
+  "histograms": {
+    "trade_execution_AAPL": {
+      "sum": 0.9999999999999999,
+      "count": 10,
+      "min": 0.1,
+      "max": 0.1
+    }
+  }
+}
