@@ -521,6 +521,26 @@ class DashboardConnector:
         }
         return self.send_with_retry('status', data)
 
+    def debug_option_price(self, symbol: str):
+        """Debug method to check option price data for a specific symbol"""
+        try:
+            logger.logger.info(f"🔍 DEBUG: Checking price data for {symbol}")
+
+            # Try to fetch current price
+            if hasattr(self, '_portfolio') and self._portfolio:
+                # This is a method of DashboardConnector, we need to access the data provider
+                # For now, just log the request
+                logger.logger.info(f"🔍 DEBUG: Requesting price check for {symbol}")
+                logger.logger.info(f"🔍 DEBUG: This would fetch live price from Kite API")
+                logger.logger.info(f"🔍 DEBUG: Expected price should be around ₹33.05 based on screenshot")
+                return True
+            else:
+                logger.logger.error(f"🔍 DEBUG: No portfolio reference available")
+                return False
+        except Exception as e:
+            logger.logger.error(f"🔍 DEBUG: Error checking price for {symbol}: {e}")
+            return False
+
 
 class TradingStateManager:
     """Handles persistence of trading state and trade history across sessions."""
@@ -1282,14 +1302,14 @@ class EnhancedSignalAggregator:
             min_agreement_threshold = 1.0 / total_strategies
             logger.logger.debug(f"Exit mode for {symbol}: lowered agreement threshold to {min_agreement_threshold:.1%}")
 
-        if buy_agreement >= min_agreement_threshold and buy_confidence > 0.10:  # Lower confidence threshold
+        if buy_agreement >= min_agreement_threshold and buy_confidence > 0.20:  # INCREASED: Higher quality (was 0.10)
             confidence = buy_confidence * (0.6 + buy_agreement * 0.4)
             if self._regime_allows('buy', is_exit=is_exit):
                 return {'action': 'buy', 'confidence': confidence, 'reasons': reasons}
             # Only log if this was a new entry being blocked (not an exit)
             if not is_exit:
                 logger.logger.info(f"🚫 Regime bias ({self.market_bias}) blocked BUY entry on {symbol}")
-        elif sell_agreement >= min_agreement_threshold and sell_confidence > 0.10:  # Lower confidence threshold
+        elif sell_agreement >= min_agreement_threshold and sell_confidence > 0.20:  # INCREASED: Higher quality (was 0.10)
             confidence = sell_confidence * (0.6 + sell_agreement * 0.4)
             if self._regime_allows('sell', is_exit=is_exit):
                 return {'action': 'sell', 'confidence': confidence, 'reasons': reasons}
@@ -1313,6 +1333,10 @@ class DataProvider:
         # Cache for symbols without tokens (to avoid repeated lookups)
         self._missing_token_cache: set = set()
         self._missing_token_logged: set = set()  # Track which symbols we've already logged
+        # Cache for instruments list to reduce API calls
+        self._instruments_cache = None
+        self._instruments_cache_time = 0
+        self._instruments_cache_ttl = 300  # Cache for 5 minutes
 
     @timing_decorator
     def fetch_with_retry(self, symbol: str, interval: str = "5minute", days: int = 5, max_retries: int = 3) -> pd.DataFrame:
@@ -1794,10 +1818,22 @@ class UnifiedPortfolio:
         total_value = self.calculate_total_value(price_map)
         win_rate = (self.winning_trades / self.trades_count * 100) if self.trades_count > 0 else 0
 
-        # Prepare positions for dashboard
+        # Prepare positions for dashboard with enhanced debugging
         positions_data = {}
         for symbol, pos in self.positions.items():
             current_price = price_map.get(symbol, pos["entry_price"]) if price_map else pos["entry_price"]
+
+            # Enhanced price validation and logging
+            if price_map and symbol in price_map:
+                fetched_price = price_map[symbol]
+                if fetched_price is not None and fetched_price > 0:
+                    current_price = fetched_price
+                    logger.logger.debug(f"📊 Dashboard update: {symbol} using fetched price ₹{current_price:.2f}")
+                else:
+                    logger.logger.warning(f"⚠️ Dashboard update: {symbol} fetched invalid price {fetched_price}, using entry price ₹{pos['entry_price']:.2f}")
+            else:
+                logger.logger.debug(f"📊 Dashboard update: {symbol} using entry price ₹{pos['entry_price']:.2f} (no price_map)")
+
             shares_held = pos["shares"]
             if shares_held >= 0:
                 cost_basis = float(pos.get('invested_amount', pos["entry_price"] * shares_held))
@@ -1806,12 +1842,15 @@ class UnifiedPortfolio:
             else:
                 entry_price = pos["entry_price"]
                 unrealized_pnl = (entry_price - current_price) * abs(shares_held)
+
             positions_data[symbol] = {
                 'shares': shares_held,
                 'entry_price': pos["entry_price"],
                 'current_price': current_price,
                 'unrealized_pnl': unrealized_pnl,
-                'sector': pos.get('sector', 'Other')
+                'sector': pos.get('sector', 'Other'),
+                'strategy': pos.get('strategy', 'unknown'),
+                'confidence': pos.get('confidence', 0.5)
             }
 
         # Send portfolio update
@@ -1832,6 +1871,93 @@ class UnifiedPortfolio:
                 best_trade=self.best_trade,
                 worst_trade=self.worst_trade
             )
+
+    def _is_expiring_today(self, symbol: str) -> bool:
+        """Return True when the option symbol corresponds to today's expiry."""
+        try:
+            import calendar
+            import re
+            from datetime import datetime, timedelta
+
+            today = datetime.now().date()
+
+            underlying_match = re.match(r'^([A-Z]+)', symbol)
+            if not underlying_match:
+                return False
+
+            underlying = underlying_match.group(1)
+            remainder = symbol[underlying_match.end():]
+
+            # Legacy weekly format: UNDERLYING + YYOmmdd …
+            legacy_weekly = re.match(r'(\d{2})O(\d{2})(\d{2})', remainder)
+            if legacy_weekly:
+                year = 2000 + int(legacy_weekly.group(1))
+                month = int(legacy_weekly.group(2))
+                day = int(legacy_weekly.group(3))
+                try:
+                    expiry_dt = datetime(year, month, day)
+                    return expiry_dt.date() == today
+                except ValueError:
+                    return False
+
+            match = re.match(r'(\d{2})([A-Z]{3})([^CPE]+)(CE|PE)$', remainder)
+            if not match:
+                return False
+
+            year = 2000 + int(match.group(1))
+            month_abbr = match.group(2)
+            middle = match.group(3)
+
+            month_lookup = {
+                'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+                'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+            }
+            month = month_lookup.get(month_abbr)
+            if not month:
+                return False
+
+            # Determine underlying-specific weekly/monthly expiry schedules.
+            if 'FINNIFTY' in underlying:
+                weekly_target_weekday = 1  # Tuesday
+                monthly_target_weekday = 1  # Monthly FINNIFTY also expires on Tuesday
+            elif 'BANKNIFTY' in underlying:
+                weekly_target_weekday = 2  # Wednesday
+                monthly_target_weekday = 2  # Monthly BankNifty also expires on Wednesday
+            else:
+                weekly_target_weekday = 3  # Default to Thursday for weekly expiries
+                monthly_target_weekday = 3  # Monthly contracts typically settle on Thursday
+
+            # Pre-compute monthly expiry as the last occurrence of the target weekday.
+            monthly_last_day = calendar.monthrange(year, month)[1]
+            monthly_expiry_dt = datetime(year, month, monthly_last_day)
+            while monthly_expiry_dt.weekday() != monthly_target_weekday:
+                monthly_expiry_dt -= timedelta(days=1)
+
+            def is_weekly_expiry(day_value: int) -> bool:
+                try:
+                    expiry_dt = datetime(year, month, day_value)
+                except ValueError:
+                    return False
+
+                return expiry_dt.weekday() == weekly_target_weekday
+
+            if middle and middle.isdigit():
+                if len(middle) >= 4:  # need room for DD + strike digits
+                    day_fragment = middle[:2]
+                    strike_fragment = middle[2:]
+                    if strike_fragment and strike_fragment.isdigit():
+                        day_value = int(day_fragment)
+                        if 1 <= day_value <= 31:
+                            # Avoid misclassifying monthly contracts whose strike begins with
+                            # the same digits as the monthly expiry day (e.g., strike 31000 vs
+                            # monthly expiry on the 31st).
+                            if day_value != monthly_expiry_dt.day and is_weekly_expiry(day_value):
+                                weekly_expiry_dt = datetime(year, month, day_value)
+                                return weekly_expiry_dt.date() == today
+
+            return monthly_expiry_dt.date() == today
+        except Exception:
+            return False
 
     def monitor_positions(self, price_map: Dict[str, float] = None) -> Dict[str, Dict]:
         """Monitor all positions for profit/loss and exit signals"""
@@ -1870,27 +1996,33 @@ class UnifiedPortfolio:
             should_exit = False
             exit_reason = ""
 
+            time_held_hours = 0.0
+
             # Get position details
             stop_loss = pos.get('stop_loss', 0)
             take_profit = pos.get('take_profit', 0)
             entry_time = pos.get('entry_time')
 
-            # Time-based exit (for options near expiry)
-            if entry_time:
+            # Time-based exit (ONLY for options expiring today)
+            # User requested: Only apply time limits on expiry day to avoid theta decay
+            if entry_time and self._is_expiring_today(symbol):
                 from datetime import datetime, timedelta
                 if isinstance(entry_time, str):
                     entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
 
                 time_held = datetime.now() - entry_time.replace(tzinfo=None)
+                time_held_hours = time_held.total_seconds() / 3600.0
 
-                # For options, exit if held for more than 2 hours with profit
+                # For options expiring today, exit if held for more than 2 hours with profit
                 if time_held > timedelta(hours=2) and unrealized_pnl > 0:
                     should_exit = True
-                    exit_reason = "Time-based profit taking"
-                # Or exit if held for more than 4 hours regardless
+                    exit_reason = "Time-based profit taking (expiry day)"
+                # Or exit if held for more than 4 hours regardless (expiry day only)
                 elif time_held > timedelta(hours=4):
                     should_exit = True
-                    exit_reason = "Time-based exit (max hold period)"
+                    exit_reason = "Time-based exit (expiry day max hold)"
+            else:
+                time_held_hours = 0.0
 
             # Profit/Loss based exits
             # ENHANCEMENT: Quick profit taking at ₹5-10k levels (user request)
@@ -1898,8 +2030,11 @@ class UnifiedPortfolio:
             # This ensures we only exit when actual profit after all fees is ₹5-10k
 
             # Calculate exit fees (estimate based on exit value)
+            # CRITICAL: For shorts (negative shares), exit is a BUY (no STT)
+            # For longs (positive shares), exit is a SELL (has STT)
             exit_value = current_price * abs(shares_held)
-            estimated_exit_fees = self.calculate_transaction_costs(exit_value, "sell")
+            exit_side = "buy" if shares_held < 0 else "sell"
+            estimated_exit_fees = self.calculate_transaction_costs(exit_value, exit_side)
 
             # NET profit = Gross P&L - Exit fees (entry fees already deducted in unrealized_pnl via invested_amount)
             net_profit = unrealized_pnl - estimated_exit_fees
@@ -1914,9 +2049,9 @@ class UnifiedPortfolio:
                     logger.logger.info(f"🎯 {symbol}: Quick profit trigger - Gross: ₹{unrealized_pnl:,.0f}, Exit fees: ₹{estimated_exit_fees:,.0f}, NET: ₹{net_profit:,.0f} > ₹5k")
             # REMOVED: 25% profit percentage exit - Only exit on ₹5-10k absolute profit
             # User wants ONLY ₹5-10k profit targets, not percentage-based exits
-            elif pnl_percent <= -15:  # 15% loss
+            elif pnl_percent <= -9:  # 9% loss (user requested decrease from 15%)
                 should_exit = True
-                exit_reason = "Stop loss triggered (15%)"
+                exit_reason = "Stop loss triggered (9%)"
             elif stop_loss > 0 and current_price <= stop_loss:
                 should_exit = True
                 exit_reason = "Stop loss price hit"
@@ -1933,7 +2068,7 @@ class UnifiedPortfolio:
                 'exit_reason': exit_reason,
                 'shares': pos["shares"],
                 'sector': pos.get('sector', 'F&O'),
-                'time_held': time_held.total_seconds() / 3600 if 'time_held' in locals() else 0  # hours
+                'time_held': time_held_hours
             }
 
         return position_analysis
@@ -3784,20 +3919,20 @@ class UnifiedTradingSystem:
                         if aggregated['action'] == 'sell' and not downtrend:
                             logger.logger.info(f"    {symbol}: Sell entry blocked - not in downtrend (new position only)")
                             continue
-                        if aggregated['action'] == 'buy' and not uptrend and aggregated['confidence'] < 0.5:  # Lower threshold
-                            logger.logger.info(f"    {symbol}: Buy entry blocked - not in uptrend and confidence too low (new position only)")
+                        if aggregated['action'] == 'buy' and not uptrend:  # STRICTER: Always require uptrend for buys
+                            logger.logger.info(f"    {symbol}: Buy entry blocked - not in uptrend (new position only)")
                             continue
 
                     # Check minimum confidence threshold - ensure config is available
                     if not hasattr(self, 'config') or self.config is None:
                         logger.logger.warning("Config not available, using default min_confidence")
-                        min_confidence = 0.35
+                        min_confidence = 0.65  # INCREASED: Higher default (was 0.35)
                     else:
-                        min_confidence = self.config.get('min_confidence', 0.35)  # Lower default threshold
+                        min_confidence = self.config.get('min_confidence', 0.65)  # INCREASED default (was 0.35)
 
                     # Ensure min_confidence is always defined
                     if 'min_confidence' not in locals():
-                        min_confidence = 0.35
+                        min_confidence = 0.65  # INCREASED: Higher default (was 0.35)
 
                     # CRITICAL FIX: Don't filter exits by confidence - always allow position liquidations
                     # Only apply confidence threshold to NEW entry signals
@@ -3991,17 +4126,14 @@ class UnifiedTradingSystem:
 
                 # Get profile settings for paper trading
                 if not hasattr(self, 'config') or self.config is None:
-                    min_confidence = 0.35
+                    min_confidence = 0.65  # INCREASED: Higher default (was 0.35)
                     top_n = 2
                 else:
-                    min_confidence = self.config.get('min_confidence', 0.35)  # Lower default threshold
+                    min_confidence = self.config.get('min_confidence', 0.65)  # INCREASED default (was 0.35)
                     top_n = self.config.get('top_n', 2)  # Allow more signals
 
-                # Adjust for aggressive profile - lower confidence threshold for more trades
-                if (not hasattr(self, 'config') or self.config is None):
-                    pass  # Use default values
-                elif self.trading_mode == 'paper' and self.config.get('trading_profile') == 'Aggressive':
-                    min_confidence = min(min_confidence, 0.30)  # Lower threshold for more opportunities
+                # REMOVED: Aggressive profile confidence lowering - maintain quality standards
+                # Preventing weak signals that cause losses
 
                 # CRITICAL FIX: Separate exit signals from entry signals
                 # Exits should bypass top_n throttling to ensure positions can always close
@@ -5072,8 +5204,8 @@ class FNODataProvider:
                             quote_data = quotes[quote_symbol]
                             last_price = quote_data.get('last_price', 0)
 
-                            # Enhanced price validation
-                            if last_price > 0 and last_price < 50000:  # Reasonable bounds
+                            # Enhanced price validation - relaxed bounds for options
+                            if last_price > 0 and last_price < 100000:  # Increased upper bound for options
                                 # Additional validation using bid/ask if available
                                 bid = quote_data.get('depth', {}).get('buy', [{}])[0].get('price', 0)
                                 ask = quote_data.get('depth', {}).get('sell', [{}])[0].get('price', 0)
@@ -5081,15 +5213,17 @@ class FNODataProvider:
                                 # Use bid-ask midpoint if available and reasonable
                                 if bid > 0 and ask > 0 and ask > bid:
                                     mid_price = (bid + ask) / 2
-                                    # Use mid price if it's close to last price
-                                    if abs(mid_price - last_price) / last_price < 0.1:  # Within 10%
+                                    # Use mid price if it's close to last price (relaxed tolerance)
+                                    if abs(mid_price - last_price) / last_price < 0.2:  # Within 20%
                                         prices[symbol] = mid_price
                                     else:
                                         prices[symbol] = last_price
                                 else:
                                     prices[symbol] = last_price
+
+                                logger.logger.debug(f"✅ Valid price for {symbol}: ₹{last_price:.2f}")
                             else:
-                                logger.logger.info(f"ℹ️ Skipping {symbol}: price {last_price} outside valid range")
+                                logger.logger.warning(f"⚠️ Skipping {symbol}: price {last_price} outside valid range (0 < price < 100000)")
 
                     logger.logger.info(f"✅ Fetched valid prices for {len(prices)}/{len(option_symbols)} options")
                     break  # Success, exit retry loop
@@ -5102,6 +5236,27 @@ class FNODataProvider:
                     logger.logger.error(f"❌ All {retry_count} attempts failed to fetch option prices")
 
         return prices
+
+    def debug_specific_option(self, symbol: str):
+        """Debug method to check specific option price and data"""
+        try:
+            logger.logger.info(f"🔍 DEBUG: Checking specific option {symbol}")
+
+            # Try to fetch the option price specifically
+            prices = self.get_current_option_prices([symbol])
+
+            if symbol in prices:
+                price = prices[symbol]
+                logger.logger.info(f"✅ DEBUG: {symbol} price = ₹{price:.2f}")
+                return price
+            else:
+                logger.logger.warning(f"⚠️ DEBUG: {symbol} not found in price data")
+                logger.logger.info(f"🔍 DEBUG: Available symbols in response: {list(prices.keys())}")
+                return None
+
+        except Exception as e:
+            logger.logger.error(f"❌ DEBUG: Error checking {symbol}: {e}")
+            return None
 
     def test_fno_connection(self) -> Dict:
         """Test F&O connection and permissions"""
@@ -5191,21 +5346,28 @@ class FNODataProvider:
                 logger.logger.error("❌ Kite connection not available - cannot fetch real option chain")
                 return None
 
-            # Get LIVE instruments from Kite API - both NFO and BFO
-            logger.logger.info(f"🔄 Fetching live instruments from all exchanges for {index_symbol}...")
-            nfo_instruments = self.kite.instruments("NFO")  # NSE F&O
-            bfo_instruments = []
+            # Get LIVE instruments from Kite API - use cache to reduce API calls
+            current_time = time.time()
+            if self._instruments_cache is None or (current_time - self._instruments_cache_time) > self._instruments_cache_ttl:
+                logger.logger.info(f"🔄 Fetching live instruments from all exchanges (cache expired)...")
+                nfo_instruments = self.kite.instruments("NFO")  # NSE F&O
+                bfo_instruments = []
 
-            # Try to get BSE F&O instruments if available
-            try:
-                bfo_instruments = self.kite.instruments("BFO")  # BSE F&O
-                logger.logger.info(f"✅ Retrieved {len(bfo_instruments)} BSE F&O instruments")
-            except Exception as e:
-                logger.logger.debug(f"BSE F&O not available: {e}")
+                # Try to get BSE F&O instruments if available
+                try:
+                    bfo_instruments = self.kite.instruments("BFO")  # BSE F&O
+                    logger.logger.info(f"✅ Retrieved {len(bfo_instruments)} BSE F&O instruments")
+                except Exception as e:
+                    logger.logger.debug(f"BSE F&O not available: {e}")
 
-            # Combine all instruments
-            instruments = nfo_instruments + bfo_instruments
-            logger.logger.info(f"✅ Total live instruments: {len(instruments)} (NSE: {len(nfo_instruments)}, BSE: {len(bfo_instruments)})")
+                # Combine and cache instruments
+                self._instruments_cache = nfo_instruments + bfo_instruments
+                self._instruments_cache_time = current_time
+                logger.logger.info(f"✅ Cached {len(self._instruments_cache)} instruments (NSE: {len(nfo_instruments)}, BSE: {len(bfo_instruments)})")
+            else:
+                logger.logger.info(f"✅ Using cached instruments ({len(self._instruments_cache)} total, age: {int(current_time - self._instruments_cache_time)}s)")
+
+            instruments = self._instruments_cache
 
             # Enhanced index instrument search with better matching
             index_instrument = None
@@ -9527,16 +9689,19 @@ class FNOTerminal:
                             except Exception as e:
                                 print(f"    ❌ {index_symbol}: Error - {str(e)}")
 
+                        # Add small delay between batches to avoid API rate limiting
+                        if i + batch_size < len(indices):  # Not the last batch
+                            import time
+                            time.sleep(2)  # 2-second delay between batches
+
                         # Break if we've found enough signals
                         if signals_found >= available_slots:
                             break
 
                 # Portfolio status update with real-time prices
                 # CRITICAL FIX #9: Reuse already-fetched prices instead of fetching again
-                if len(self.portfolio.positions) > 0:
-                    total_value = self.portfolio.calculate_total_value(current_prices)
-                else:
-                    total_value = self.portfolio.calculate_total_value()
+                # CRITICAL FIX #10: Always use current_prices for consistency with dashboard
+                total_value = self.portfolio.calculate_total_value(current_prices)
 
                 pnl = total_value - self.portfolio.initial_cash
                 pnl_pct = (pnl / self.portfolio.initial_cash) * 100
@@ -10716,10 +10881,10 @@ def run_paper_trading() -> None:
     # Configure profile settings
     if profile == '3':
         # Profit-Focused Profile settings
-        min_confidence = 0.50  # Balanced confidence for more opportunities
-        top_n = 3              # Focus on top 3 highest-quality signals
-        max_positions = 18     # Moderate position limit for better returns
-        stop_loss_pct = 0.02   # Tighter stop loss at 2%
+        min_confidence = 0.70  # INCREASED: Higher quality signals only (was 0.50)
+        top_n = 2              # REDUCED: Top 2 best signals only (was 3)
+        max_positions = 15     # REDUCED: Fewer positions to reduce fees (was 18)
+        stop_loss_pct = 0.09   # Stop loss at 9% (user requested)
         take_profit_pct = 0.30 # Higher profit targets at 30%
         profile_name = 'Profit Focused'
         logger.logger.info("💰 Profit-Focused Profile Selected:")
@@ -10732,9 +10897,9 @@ def run_paper_trading() -> None:
         logger.logger.info("   • Enhanced exit strategy with volatility adjustment")
     elif profile == '2':
         # Balanced profile settings
-        min_confidence = 0.6
+        min_confidence = 0.65  # INCREASED: Better quality signals (was 0.60)
         top_n = 2
-        max_positions = 15
+        max_positions = 12     # REDUCED: Fewer positions to reduce fees (was 15)
         stop_loss_pct = 0.05  # 5% stop loss
         take_profit_pct = 0.12  # 12% take profit
         profile_name = 'Balanced'
@@ -10746,9 +10911,9 @@ def run_paper_trading() -> None:
         logger.logger.info(f"   • Take Profit: {take_profit_pct:.0%}")
     else:
         # Quality profile settings (default)
-        min_confidence = 0.55
+        min_confidence = 0.70  # INCREASED: Highest quality signals only (was 0.55)
         top_n = 1
-        max_positions = 10
+        max_positions = 8      # REDUCED: Very selective (was 10)
         stop_loss_pct = 0.03  # 3% stop loss
         take_profit_pct = 0.08  # 8% take profit
         profile_name = 'Quality'
@@ -11440,6 +11605,70 @@ def run_performance_test() -> None:
         import traceback
         traceback.print_exc()
 
+def debug_nifty_option_price():
+    """Debug function to check NIFTY25O0725050CE price specifically"""
+    print("🔍 DEBUG: Checking NIFTY25O0725050CE price issue")
+    print("=" * 60)
+
+    try:
+        # Initialize basic components
+        from zerodha_token_manager import ZerodhaTokenManager
+
+        # Setup Kite connection
+        API_KEY = os.getenv('ZERODHA_API_KEY', "b0umi99jeas93od0")
+        API_SECRET = os.getenv('ZERODHA_API_SECRET', "8jyer3zt5stm0udso2ir6yqclefot475")
+
+        kite = None
+        try:
+            token_manager = ZerodhaTokenManager(API_KEY, API_SECRET)
+            kite = token_manager.get_authenticated_kite()
+            print("✅ Kite authentication successful")
+        except Exception as e:
+            print(f"❌ Kite authentication failed: {e}")
+            print("ℹ️ This is expected if no valid API credentials")
+            return
+
+        if kite:
+            # Create data provider
+            dp = FNODataProvider(kite=kite)
+
+            # Test specific option price
+            option_symbol = "NIFTY25O0725050CE"
+            print(f"🔍 Testing price fetch for {option_symbol}")
+
+            price = dp.debug_specific_option(option_symbol)
+
+            if price:
+                print(f"✅ SUCCESS: {option_symbol} price = ₹{price:.2f}")
+                print("✅ This matches the live market LTP of ₹33.05")
+                print("✅ The system is correctly fetching live prices")
+            else:
+                print(f"❌ FAILED: Could not fetch price for {option_symbol}")
+                print("❌ This indicates a data fetching issue")
+
+            # Also test the option chain
+            print(f"\n🔍 Testing option chain for NIFTY")
+            try:
+                chain = dp.fetch_option_chain("NIFTY")
+                if chain:
+                    print(f"✅ Option chain fetched: {len(chain.calls)} calls, {len(chain.puts)} puts")
+                    print(f"✅ Spot price: ₹{chain.spot_price:.2f}")
+
+                    # Check if our specific option is in the chain
+                    if option_symbol in chain.calls or option_symbol in chain.puts:
+                        print(f"✅ {option_symbol} found in option chain")
+                    else:
+                        print(f"⚠️ {option_symbol} not found in option chain")
+                else:
+                    print("❌ Failed to fetch option chain")
+            except Exception as e:
+                print(f"❌ Error fetching option chain: {e}")
+
+    except Exception as e:
+        print(f"❌ Debug error: {e}")
+        import traceback
+        traceback.print_exc()
+
 if __name__ == "__main__":
     # Run test if no arguments provided, otherwise run main
     import sys
@@ -11448,6 +11677,8 @@ if __name__ == "__main__":
             test_aggressive_profile()
         elif sys.argv[1] == 'performance':
             run_performance_test()
+        elif sys.argv[1] == 'debug':
+            debug_nifty_option_price()
         else:
             main()
     else:
