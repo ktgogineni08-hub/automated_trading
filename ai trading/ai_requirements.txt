@@ -1,0 +1,57 @@
+# AI Trading System Dependencies
+# Core ML Libraries
+# tensorflow>=2.17.0,<2.19.0  # Temporarily disabled due to compatibility issues
+# torch>=2.0.0                 # Temporarily disabled due to compatibility issues
+scikit-learn>=1.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Processing
+yfinance>=0.2.0
+pandas-datareader>=0.10.0
+requests>=2.31.0
+
+# Natural Language Processing
+textblob>=0.17.1
+nltk>=3.8
+vaderSentiment>=3.3.2
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# API and Web
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+
+# Performance and Monitoring
+psutil>=5.9.0
+memory-profiler>=0.61.0
+
+# Utilities
+joblib>=1.3.0
+tqdm>=4.65.0
+python-dotenv>=1.0.0
+
+# Optional: GPU Support
+# cupy-cuda12x>=12.0.0  # Uncomment for CUDA support
+# cudnn>=8.9.0          # Uncomment for CUDA support
+
+# Optional: Advanced Analytics
+# statsmodels>=0.14.0
+# arch>=6.0.0           # For GARCH models
+# pyflux>=0.4.17        # For time series analysis
+
+# Optional: Web Framework for Dashboard
+# fastapi>=0.104.0
+# uvicorn>=0.24.0
+# websockets>=12.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0

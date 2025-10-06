@@ -1,0 +1,4 @@
+timestamp,metric,params,symbols
+2025-09-08 12:30:12,composite,"{""lookback_days"": 30, ""interval"": ""5minute"", ""workers"": 6, ""delay"": 0.0, ""sector_filter"": null, ""composite_weights"": null}","MARUTI,RELIANCE,HDFCBANK,BRITANNIA,BAJFINANCE,EICHERMOT,INFY,ICICIBANK,BHARTIARTL,TCS"
+2025-09-15 12:09:44,composite,"{""lookback_days"": 60, ""interval"": ""day"", ""workers"": 6, ""delay"": 0.0, ""sector_filter"": null, ""composite_weights"": null}","MARUTI,HDFCBANK,RELIANCE,BAJFINANCE,INFY,BHARTIARTL,ICICIBANK,EICHERMOT,TCS,TATASTEEL"
+2025-09-15 12:12:54,composite,"{""lookback_days"": 90, ""interval"": ""5minute"", ""workers"": 6, ""delay"": 0.0, ""sector_filter"": null, ""composite_weights"": null}","M&M,HDFCBANK,RELIANCE,BAJFINANCE,BHARTIARTL,MARUTI,INFY,EICHERMOT,ICICIBANK,TATAMOTORS,HINDALCO,HINDUNILVR,BRITANNIA,UPL,TATASTEEL,KOTAKBANK,SBIN,TCS,AXISBANK,ULTRACEMCO"

@@ -1,0 +1,36 @@
+# General Python ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs and runtime data
+logs/
+saved_trades/
+state/
+backtest_results/
+
+# Local configuration and secrets
+access_token.json
+zerodha_access.token
+zerodha_tokens.json
+system_diagnostics.json
+trading_config.json
+
+# IDE / editor settings
+.vscode/
+.DS_Store
+
+# Generated data files
+performance_*.csv
+trades.csv
+
+# Cached token/state snapshots
+*.bak
