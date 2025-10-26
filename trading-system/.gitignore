@@ -38,6 +38,7 @@ access_token.json
 zerodha_access.token
 *.log
 *.jsonl
+logs_database.db
 
 # CRITICAL: API credentials and sensitive data
 .env
