@@ -1,0 +1,79 @@
+# Multi-Region Service Configuration
+# Phase 4 Tier 4: Multi-Region & High Availability
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-system
+  namespace: trading-system
+  labels:
+    app: trading-system
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+spec:
+  type: LoadBalancer
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: http
+    protocol: TCP
+  - name: dashboard
+    port: 8050
+    targetPort: dashboard
+    protocol: TCP
+  selector:
+    app: trading-system
+  
+---
+# Internal service for pod-to-pod communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-system-internal
+  namespace: trading-system
+  labels:
+    app: trading-system
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSets
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    app: trading-system
+
+---
+# Dashboard service
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-dashboard
+  namespace: trading-system
+  labels:
+    app: trading-system
+    component: dashboard
+spec:
+  type: LoadBalancer
+  ports:
+  - name: dashboard
+    port: 80
+    targetPort: 8050
+    protocol: TCP
+  selector:
+    app: trading-system

@@ -1,0 +1,65 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment folders
+.env
+venv/
+env/
+
+# State and log files
+state/
+logs/
+saved_trades/
+zerodha_tokens.json
+access_token.json
+zerodha_access.token
+*.log
+*.jsonl
+
+# CRITICAL: API credentials and sensitive data
+.env
+.env.*
+!.env.example
+**/zerodha_token.json
+credentials.json
+api_keys.json
+api_secret*
+*_secret.json
+
+# Trading data with potentially sensitive info
+trades.csv
+trade_archives/
+trade_archives_backup/
+performance_*.csv
+backtest_results/
+*.pkl
+
+# System diagnostics that may contain sensitive info
+system_diagnostics.json
+
+# IDE settings
+.vscode/
+.idea/

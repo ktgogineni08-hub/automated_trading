@@ -1,0 +1,97 @@
+# Docker ignore file - exclude files from Docker build context
+# Phase 3 Tier 3: DevOps & Cloud Infrastructure
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.travis.yml
+.gitlab-ci.yml
+
+# Documentation (already in image if needed)
+Documentation/
+Legacy/
+archived_development_files/
+*.md
+!README.md
+
+# Logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+.DS_Store
+Thumbs.db
+
+# Data files (use volumes instead)
+data/
+*.csv
+*.json
+*.db
+*.sqlite
+
+# Models (use volumes)
+models/
+test_models/
+*.pkl
+*.h5
+*.pt
+
+# Credentials (never include in image)
+.env
+.env.local
+.env.*
+credentials/
+kyc_data/
+certs/
+
+# Kubernetes and deployment configs
+k8s/
+infrastructure/
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Test files
+tests/
+test_*/
+conftest.py
+
+# Maintenance scripts
+cleanup_*.sh
+setup_*.sh

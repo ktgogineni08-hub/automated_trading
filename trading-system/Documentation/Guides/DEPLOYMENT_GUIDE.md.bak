@@ -1,0 +1,439 @@
+# Production Deployment Guide
+
+## 🎯 Overview
+
+This guide walks you through deploying the enhanced trading system to production after security fixes.
+
+---
+
+## ✅ Security Fixes Applied
+
+All critical security vulnerabilities have been addressed:
+
+1. ✅ **Position Close Pricing** - Now fetches live market price
+2. ✅ **SEBI Ban List** - Real NSE API integration
+3. ✅ **Token Encryption** - XOR encryption with 0600 permissions
+4. ✅ **Hardcoded Credentials** - Removed, environment variables required
+5. ✅ **Volatility Classification** - Fixed threshold ordering
+6. ✅ **Dashboard Subprocess** - Fixed pipe blocking issue
+
+See [SECURITY_FIXES.md](SECURITY_FIXES.md) for detailed technical documentation.
+
+---
+
+## 🚀 Quick Start (5 Steps)
+
+### Step 1: Obtain API Credentials
+
+**⚠️ CRITICAL - Secure your credentials!**
+
+Get your Zerodha API credentials:
+
+**Action Required:**
+1. Login to [Zerodha Console](https://kite.zerodha.com/)
+2. Go to **API Settings** → **My Apps**
+3. Create a new app or use existing app credentials
+4. Save the API Key and API Secret securely
+5. **NEVER** commit these credentials to git or share them publicly
+
+---
+
+### Step 2: Set Up Environment Variables
+
+Run the interactive setup script:
+
+```bash
+./setup_credentials.sh
+```
+
+This will:
+- Prompt for your new API credentials
+- Securely store them in environment variables
+- Optionally add to `~/.bashrc` or `~/.zshrc` for persistence
+
+**Manual Setup (Alternative):**
+
+```bash
+# Set for current session
+export ZERODHA_API_KEY='your_new_api_key'
+export ZERODHA_API_SECRET='your_new_api_secret'
+
+# Make permanent (add to ~/.bashrc or ~/.zshrc)
+echo 'export ZERODHA_API_KEY="your_new_api_key"' >> ~/.bashrc
+echo 'export ZERODHA_API_SECRET="your_new_api_secret"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Verify:**
+```bash
+echo $ZERODHA_API_KEY  # Should print your key
+```
+
+---
+
+### Step 3: Run Security Tests
+
+Verify all fixes are working:
+
+```bash
+python3 test_security_fixes.py
+```
+
+**Expected Output:**
+```
+✅ PASS - SEBI Ban List
+✅ PASS - Token Encryption
+✅ PASS - Volatility Classification
+✅ PASS - Hardcoded Credentials
+✅ PASS - Environment Variables
+
+5/5 tests passed
+🎉 All tests passed! System is ready for deployment.
+```
+
+---
+
+### Step 4: Test in Paper Mode
+
+Run a full trading session in paper mode to verify everything works:
+
+```bash
+python3 enhanced_trading_system_complete.py --mode paper
+```
+
+**What to Monitor:**
+- ✅ Authentication succeeds with new credentials
+- ✅ Token file created with 0600 permissions
+- ✅ Ban list refreshes from NSE API
+- ✅ Positions close at live market prices (check logs for "✅ Fetched live exit price")
+- ✅ Volatility classification shows EXTREME when ATR > 4.5%
+- ✅ Dashboard starts without blocking
+
+**Check Logs For:**
+```
+✅ Tokens saved securely to ~/.config/trading-system/zerodha_token.json (encrypted, permissions: 0600)
+✅ Ban list refreshed: 0 securities in ban period
+✅ Fetched live exit price for SYMBOL: ₹XX.XX
+📊 Volatility: EXTREME (X.X%) - should appear during high volatility
+```
+
+---
+
+### Step 5: Deploy to Live Trading
+
+Once paper mode tests pass for at least 1 full session:
+
+```bash
+python3 enhanced_trading_system_complete.py --mode live
+```
+
+**⚠️ Live Trading Checklist:**
+- [ ] Paper mode ran successfully for full session
+- [ ] All security tests passed
+- [ ] New API credentials generated and rotated
+- [ ] Environment variables set correctly
+- [ ] Token cache (~/.config/trading-system/zerodha_token.json) has 0600 permissions
+- [ ] Ban list refreshing successfully
+- [ ] Position sizing matches 1% risk rule
+- [ ] Stop-loss and take-profit levels correct
+- [ ] Monitoring dashboard accessible
+
+---
+
+## 📋 Post-Deployment Monitoring
+
+### Critical Metrics to Watch:
+
+1. **Position Close P&L**
+   - Should match market prices (not zero)
+   - Check logs: "✅ Fetched live exit price"
+
+2. **SEBI Compliance**
+   - No trades in banned securities
+   - Check logs: "✅ Ban list refreshed"
+   - If ban list fetch fails, system keeps cached list (safe)
+
+3. **Risk Management**
+   - Position sizes respect 1% rule
+   - RRR validation (minimum 1:1.5)
+   - Volatility adjustments working
+
+4. **Token Security**
+   - Token cache permissions: `ls -la ~/.config/trading-system/zerodha_token.json` should show `-rw-------`
+   - Token content encrypted: `cat ~/.config/trading-system/zerodha_token.json` should show ciphertext
+
+5. **Dashboard Stability**
+   - No blocking or freezing
+   - Updates flowing smoothly
+
+---
+
+## 🔧 Troubleshooting
+
+### Issue: "Environment variables not set"
+
+**Solution:**
+```bash
+./setup_credentials.sh
+```
+
+Or manually:
+```bash
+export ZERODHA_API_KEY='your_key'
+export ZERODHA_API_SECRET='your_secret'
+```
+
+---
+
+### Issue: "Failed to refresh ban list: HTTP 404"
+
+**Possible Causes:**
+1. NSE API endpoint changed
+2. Rate limiting
+3. Network issues
+
+**Solution:**
+- System will keep cached ban list (safer than clearing)
+- Check NSE website for new API endpoint
+- Manually verify no securities in ban: https://www.nseindia.com/
+
+**Temporary Workaround:**
+The system fails closed, so it's safe to continue. Monitor NSE website manually.
+
+---
+
+### Issue: "Token file has unsafe permissions"
+
+**Solution:**
+```bash
+chmod 600 zerodha_tokens.json
+```
+
+---
+
+### Issue: "Could not fetch live price for SYMBOL"
+
+**Possible Causes:**
+1. Symbol not found in NFO/BFO
+2. Rate limiting
+3. Market closed
+
+**Solution:**
+- System falls back to entry price (safe but less accurate)
+- Check symbol is correct F&O contract
+- Verify market hours
+
+---
+
+### Issue: Dashboard not starting
+
+**Check:**
+1. Port 8080 available: `lsof -i :8080`
+2. Dashboard server file exists: `ls enhanced_dashboard_server.py`
+3. Python dependencies installed
+
+**Solution:**
+```bash
+# Kill existing process
+kill $(lsof -t -i:8080)
+
+# Restart dashboard
+python3 enhanced_dashboard_server.py &
+```
+
+---
+
+## 🔒 Security Best Practices
+
+### 1. Credential Management
+
+✅ **DO:**
+- Store credentials in environment variables
+- Use `setup_credentials.sh` for setup
+- Rotate credentials regularly (monthly)
+- Enable 2FA on Zerodha account
+
+❌ **DON'T:**
+- Hardcode credentials in source
+- Commit `.env` files to git
+- Share credentials in chat/email
+- Use exposed credentials from git history
+
+---
+
+### 2. Token Storage
+
+✅ **DO:**
+- Keep token file permissions at 0600
+- Delete token file if compromised
+- Let system encrypt tokens automatically
+
+❌ **DON'T:**
+- Change token file permissions to 644
+- Manually edit token file
+- Commit token file to git
+
+---
+
+### 3. Access Control
+
+✅ **DO:**
+- Run trading system as dedicated user
+- Restrict SSH access to trading server
+- Use firewall to limit network access
+- Monitor login attempts
+
+❌ **DON'T:**
+- Run as root
+- Allow password authentication (use SSH keys)
+- Expose trading server to public internet
+
+---
+
+### 4. Monitoring & Auditing
+
+✅ **DO:**
+- Review logs daily
+- Monitor unusual trade patterns
+- Set up alerts for large losses
+- Keep audit trail of all trades
+
+❌ **DON'T:**
+- Ignore warning messages
+- Disable logging for "performance"
+- Skip regular security reviews
+
+---
+
+## 📊 Performance Tuning
+
+### Rate Limiting
+
+The system includes built-in rate limiting for Kite API:
+- Max 3 requests per second
+- Automatic throttling
+- Request queuing
+
+**Monitor:** Check logs for rate limit warnings
+
+---
+
+### Position Sizing
+
+Professional risk management active:
+- **1% Rule**: Max 1% capital risk per trade
+- **RRR Validation**: Minimum 1:1.5 reward-to-risk
+- **Volatility Adjustment**: Reduces size in volatile markets
+
+**Adjust:** Modify in `risk_manager.py` if needed
+
+---
+
+### Cache Settings
+
+Ban list cache: 5 minutes
+Instrument cache: 30 minutes
+
+**Adjust:** Modify cache expiry in `sebi_compliance.py` and `enhanced_trading_system_complete.py`
+
+---
+
+## 🆘 Emergency Procedures
+
+### Suspected Credential Compromise
+
+1. **Immediately revoke API access** via Zerodha Console
+2. **Close all open positions** manually via Zerodha Kite
+3. **Generate new API credentials**
+4. **Update environment variables**
+5. **Delete and regenerate token file**
+6. **Review trading logs** for unauthorized activity
+
+### System Malfunction
+
+1. **Stop trading system**: `Ctrl+C` or `kill <pid>`
+2. **Review recent logs**: `tail -100 logs/trading_system.log`
+3. **Check open positions**: Via Zerodha Kite web interface
+4. **Close risky positions** manually if needed
+5. **Investigate issue** before restarting
+
+### Market Disruption
+
+1. **System auto-stops** on extreme volatility (>4.5% ATR)
+2. **Monitor positions** via dashboard
+3. **Manual override** available via Zerodha Kite
+4. **Wait for volatility to normalize** before resuming
+
+---
+
+## 📚 Additional Resources
+
+- **Security Documentation**: [SECURITY_FIXES.md](SECURITY_FIXES.md)
+- **API Documentation**: https://kite.trade/docs/connect/v3/
+- **NSE F&O Information**: https://www.nseindia.com/products-services/equity-derivatives
+- **SEBI Guidelines**: https://www.sebi.gov.in/
+
+---
+
+## ✅ Pre-Production Checklist
+
+Use this checklist before deploying to live trading:
+
+### Security
+- [ ] Old credentials rotated via Zerodha Console
+- [ ] New credentials set in environment variables
+- [ ] Token file has 0600 permissions
+- [ ] Token file uses encrypted format
+- [ ] No hardcoded credentials in source
+- [ ] `.env` file in `.gitignore`
+- [ ] 2FA enabled on Zerodha account
+
+### Testing
+- [ ] All 5 security tests pass
+- [ ] Paper mode ran successfully for 1+ full session
+- [ ] Ban list refreshes from NSE
+- [ ] Positions close at live market prices
+- [ ] Volatility classification working (EXTREME reachable)
+- [ ] Dashboard starts without blocking
+- [ ] Stop-loss triggers correctly
+- [ ] Take-profit triggers correctly
+
+### Risk Management
+- [ ] Position sizing follows 1% rule
+- [ ] RRR validation working (min 1:1.5)
+- [ ] Volatility adjustments active
+- [ ] Max positions limit enforced
+- [ ] Circuit breaker thresholds set
+
+### Monitoring
+- [ ] Dashboard accessible
+- [ ] Log rotation configured
+- [ ] Disk space sufficient
+- [ ] Alerts configured
+- [ ] Backup strategy in place
+
+### Documentation
+- [ ] Team trained on system operation
+- [ ] Emergency procedures documented
+- [ ] Contact information current
+- [ ] Incident response plan ready
+
+---
+
+## 🎉 You're Ready!
+
+Once all items in the checklist are complete, you're ready for production deployment.
+
+**Remember:**
+- Start with small position sizes
+- Monitor closely for first few days
+- Gradually increase exposure as confidence grows
+- Keep security as top priority
+
+**Questions or Issues?**
+Review [SECURITY_FIXES.md](SECURITY_FIXES.md) for technical details or contact your system administrator.
+
+---
+
+*Last Updated: 2025-10-07*
+*Version: 2.0 (Post-Security-Fixes)*

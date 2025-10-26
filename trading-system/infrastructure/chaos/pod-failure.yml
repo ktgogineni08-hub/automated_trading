@@ -1,0 +1,263 @@
+# Chaos Engineering Experiments
+# Phase 4 Tier 5: GitOps & Automation
+#
+# These experiments test system resilience using Chaos Mesh
+# Install Chaos Mesh: kubectl apply -f https://mirrors.chaos-mesh.org/latest/crd.yaml
+#
+# Run experiment: kubectl apply -f pod-failure.yml
+# View results: kubectl describe podchaos trading-system-pod-failure
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: trading-system-pod-failure
+  namespace: trading-system
+spec:
+  # Select pods to affect
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  # Chaos action: kill pods
+  action: pod-failure
+  
+  # Mode: one (one pod), all (all pods), fixed (fixed number), percentage
+  mode: one
+  
+  # Duration of chaos
+  duration: '30s'
+  
+  # Schedule (cron format) - run every day at 2 AM
+  scheduler:
+    cron: '@daily'
+  
+  # Grace period before killing pod
+  gracePeriod: 0
+
+---
+# Network delay chaos
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: trading-system-network-delay
+  namespace: trading-system
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  # Network delay configuration
+  delay:
+    latency: '100ms'
+    jitter: '10ms'
+    correlation: '50'
+  
+  duration: '1m'
+  direction: to  # to, from, or both
+  
+  # Target (optional) - specific pods to affect
+  target:
+    selector:
+      namespaces:
+        - trading-system
+      labelSelectors:
+        component: database
+    mode: one
+
+---
+# CPU stress chaos
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: trading-system-cpu-stress
+  namespace: trading-system
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  # Stress configuration
+  stressors:
+    cpu:
+      workers: 2
+      load: 50  # 50% CPU load per worker
+  
+  duration: '2m'
+
+---
+# Memory stress chaos
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: trading-system-memory-stress
+  namespace: trading-system
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  stressors:
+    memory:
+      workers: 2
+      size: '256MB'  # Memory to allocate
+  
+  duration: '2m'
+
+---
+# IO stress chaos
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: trading-system-io-delay
+  namespace: trading-system
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  # Volume path to affect
+  volumePath: /app/data
+  
+  # IO delay
+  delay: '100ms'
+  
+  # Percentage of operations to affect
+  percent: 50
+  
+  duration: '2m'
+
+---
+# DNS chaos
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: trading-system-dns-error
+  namespace: trading-system
+spec:
+  action: error
+  mode: one
+  selector:
+    namespaces:
+      - trading-system
+    labelSelectors:
+      app: trading-system
+  
+  # Patterns to affect
+  patterns:
+    - postgres-service*
+    - redis-service*
+  
+  duration: '30s'
+
+---
+# Workflow for automated chaos testing
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: trading-system-resilience-test
+  namespace: trading-system
+spec:
+  entry: the-entry
+  templates:
+    - name: the-entry
+      templateType: Serial
+      deadline: 10m
+      children:
+        - test-pod-failure
+        - test-network-delay
+        - test-cpu-stress
+        - verify-recovery
+    
+    - name: test-pod-failure
+      templateType: PodChaos
+      deadline: 1m
+      podChaos:
+        selector:
+          namespaces:
+            - trading-system
+          labelSelectors:
+            app: trading-system
+        mode: one
+        action: pod-failure
+        duration: '30s'
+    
+    - name: test-network-delay
+      templateType: NetworkChaos
+      deadline: 2m
+      networkChaos:
+        selector:
+          namespaces:
+            - trading-system
+          labelSelectors:
+            app: trading-system
+        mode: one
+        action: delay
+        delay:
+          latency: '100ms'
+        duration: '1m'
+    
+    - name: test-cpu-stress
+      templateType: StressChaos
+      deadline: 3m
+      stressChaos:
+        selector:
+          namespaces:
+            - trading-system
+          labelSelectors:
+            app: trading-system
+        mode: one
+        stressors:
+          cpu:
+            workers: 2
+            load: 50
+        duration: '2m'
+    
+    - name: verify-recovery
+      templateType: Suspend
+      deadline: 1m
+
+---
+# Schedule for regular chaos testing
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: trading-system-daily-chaos
+  namespace: trading-system
+spec:
+  schedule: '0 2 * * *'  # 2 AM daily
+  type: Workflow
+  workflowSpec:
+    entry: the-entry
+    templates:
+      - name: the-entry
+        templateType: Serial
+        children:
+          - daily-pod-chaos
+      
+      - name: daily-pod-chaos
+        templateType: PodChaos
+        podChaos:
+          selector:
+            namespaces:
+              - trading-system
+            labelSelectors:
+              app: trading-system
+          mode: one
+          action: pod-failure
+          duration: '30s'

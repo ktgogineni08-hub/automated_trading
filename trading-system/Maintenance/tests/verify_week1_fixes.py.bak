@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Verify Week 1 fixes are properly implemented"""
+
+import re
+import sys
+from pathlib import Path
+
+def verify_fixes():
+    """Verify all Week 1 fixes are implemented"""
+
+    print("=" * 80)
+    print("WEEK 1 FIXES VERIFICATION")
+    print("=" * 80)
+
+    file_path = Path('enhanced_trading_system_complete.py')
+    if not file_path.exists():
+        print("❌ Error: enhanced_trading_system_complete.py not found")
+        return False
+
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    all_passed = True
+
+    # Test 1: No hardcoded credentials
+    print("\n✓ Test 1: Hardcoded credentials removed")
+    hardcoded_patterns = [
+        r'<your_api_key>',
+        r'8jyer3zt5stm0udso2ir6yqclefot475',
+        r'getenv.*,\s*["\']b0umi',
+        r'getenv.*,\s*["\']8jyer'
+    ]
+
+    found_hardcoded = []
+    for pattern in hardcoded_patterns:
+        matches = re.findall(pattern, content)
+        if matches:
+            found_hardcoded.extend(matches)
+
+    if found_hardcoded:
+        print(f"  ❌ FAILED: Found hardcoded credentials:")
+        for match in found_hardcoded[:3]:
+            print(f"     - {match}")
+        all_passed = False
+    else:
+        print("  ✅ PASSED: No hardcoded credentials found")
+
+    # Test 2: HTTPS URLs only
+    print("\n✓ Test 2: HTTPS dashboard URLs")
+    http_urls = re.findall(r'http://localhost:8080', content)
+
+    if http_urls:
+        print(f"  ❌ FAILED: Found {len(http_urls)} HTTP URLs (should be HTTPS)")
+        all_passed = False
+    else:
+        print("  ✅ PASSED: All dashboard URLs use HTTPS")
+
+    # Test 3: Signal strength fix
+    print("\n✓ Test 3: Signal strength directional asymmetry fixed")
+
+    # Find the _calculate_signal_strength method
+    signal_method = re.search(
+        r'def _calculate_signal_strength.*?(?=\n    def |\Z)',
+        content,
+        re.DOTALL
+    )
+
+    if signal_method:
+        method_text = signal_method.group(0)
+
+        # Check for the problematic unconditional bonus line
+        unconditional_bonus = re.search(
+            r'strength \+= momentum_score \* 0\.25\s*\n\s*\n\s*# RSI component',
+            method_text
+        )
+
+        if unconditional_bonus:
+            print("  ❌ FAILED: Unconditional momentum bonus still present")
+            all_passed = False
+        else:
+            # Check for the fix comment
+            if "No unconditional bonus" in method_text:
+                print("  ✅ PASSED: Directional asymmetry fixed")
+            else:
+                print("  ⚠️  WARNING: Fix may be incomplete (comment not found)")
+    else:
+        print("  ❌ FAILED: Could not find _calculate_signal_strength method")
+        all_passed = False
+
+    # Test 4: validate_financial_amount is called
+    print("\n✓ Test 4: Financial validation wired into code")
+
+    validation_calls = re.findall(r'validate_financial_amount\s*\(', content)
+
+    if len(validation_calls) < 3:
+        print(f"  ❌ FAILED: Only found {len(validation_calls)} validation calls (expected 3+)")
+        print("     Expected in: portfolio init, state restoration, trade execution")
+        all_passed = False
+    else:
+        print(f"  ✅ PASSED: Found {len(validation_calls)} validation calls")
+
+        # Check specific locations
+        checks = [
+            ("Portfolio init", r'def __init__.*?validated_cash = validate_financial_amount'),
+            ("State restoration", r'def load_from_dict.*?validate_financial_amount.*?initial_cash'),
+            ("Trade execution", r'if side == "buy":.*?validate_financial_amount.*?price')
+        ]
+
+        for name, pattern in checks:
+            if re.search(pattern, content, re.DOTALL):
+                print(f"     ✅ {name}: Validated")
+            else:
+                print(f"     ⚠️  {name}: May be missing")
+
+    # Test 5: ValidationError handling
+    print("\n✓ Test 5: ValidationError exception handling")
+
+    validation_errors = re.findall(r'except ValidationError', content)
+
+    if len(validation_errors) < 1:
+        print("  ⚠️  WARNING: No ValidationError exception handlers found")
+    else:
+        print(f"  ✅ PASSED: Found {len(validation_errors)} ValidationError handlers")
+
+    # Test 6: Security comments present
+    print("\n✓ Test 6: Security fix comments present")
+
+    security_comments = [
+        "SECURITY FIX: No hardcoded fallback credentials",
+        "VALIDATION FIX:",
+        "No unconditional bonus"
+    ]
+
+    comments_found = 0
+    for comment in security_comments:
+        if comment in content:
+            comments_found += 1
+
+    if comments_found == len(security_comments):
+        print(f"  ✅ PASSED: All {comments_found} security comments present")
+    else:
+        print(f"  ⚠️  WARNING: Only {comments_found}/{len(security_comments)} comments found")
+
+    # Summary
+    print("\n" + "=" * 80)
+    if all_passed:
+        print("✅ ALL CRITICAL TESTS PASSED")
+        print("=" * 80)
+        print("\n✓ Hardcoded credentials removed")
+        print("✓ HTTPS URLs enforced")
+        print("✓ Signal asymmetry fixed")
+        print("✓ Financial validation wired in")
+        print("\n📝 Review WEEK_1_FIXES_IMPLEMENTED.md for details")
+        return True
+    else:
+        print("❌ SOME TESTS FAILED")
+        print("=" * 80)
+        print("\n⚠️  Please review the failures above")
+        print("📝 See WEEK_1_FIXES_IMPLEMENTED.md for expected changes")
+        return False
+
+if __name__ == '__main__':
+    success = verify_fixes()
+    sys.exit(0 if success else 1)
