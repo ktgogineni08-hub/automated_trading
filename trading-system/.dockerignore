@@ -76,9 +76,14 @@ test_models/
 .env
 .env.local
 .env.*
+!.env.example
 credentials/
 kyc_data/
-certs/
+keys/
+secrets/
+*.key
+*.pem
+# Note: certs/ is copied separately in Dockerfile if needed
 
 # Kubernetes and deployment configs
 k8s/

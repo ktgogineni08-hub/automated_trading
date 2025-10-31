@@ -214,14 +214,20 @@ class SecureDashboardHandler(http.server.BaseHTTPRequestHandler):
         # Only establish session and validate CSRF if authentication is required
         session_id = self._ensure_session()
         if not session_id:
-            logger.error("Unable to establish secure dashboard session for authenticated user from %s", getattr(self, 'client_ip', 'unknown'))
+            logger.error(
+                f"Unable to establish secure dashboard session for authenticated user "
+                f"from {getattr(self, 'client_ip', 'unknown')}"
+            )
             return False
 
         if self.command not in ('GET', 'HEAD', 'OPTIONS'):
             csrf_header = self.headers.get('X-CSRF-Token')
             expected_token = self._generate_csrf_token(session_id)
             if not csrf_header or not hmac.compare_digest(str(csrf_header), expected_token):
-                logger.warning("CSRF validation failed for authenticated request from %s", getattr(self, 'client_ip', 'unknown'))
+                logger.warning(
+                    f"CSRF validation failed for authenticated request from "
+                    f"{getattr(self, 'client_ip', 'unknown')}"
+                )
                 return False
 
         self._query_api_key = None
@@ -257,22 +263,31 @@ class SecureDashboardHandler(http.server.BaseHTTPRequestHandler):
                 if self.API_KEY and candidate and hmac.compare_digest(str(candidate), str(self.API_KEY)):
                     self._query_api_key = candidate
                 else:
-                    logger.warning("Invalid api_key query parameter from %s", getattr(self, 'client_ip', 'unknown'))
+                    logger.warning(
+                        f"Invalid api_key query parameter from {getattr(self, 'client_ip', 'unknown')}"
+                    )
             self.path = parsed_url.path or '/'
 
         # Validate request path
         if not self.validate_request_path(self.path):
-            logger.warning("Forbidden path access attempt from %s: %s", getattr(self, 'client_ip', 'unknown'), self.path)
+            logger.warning(
+                f"Forbidden path access attempt from {getattr(self, 'client_ip', 'unknown')}: {self.path}"
+            )
             self.send_error(403, "Forbidden")
             return
 
         if not self._require_api_key():
             # Provide helpful error message based on authentication mode
             if self.API_KEY is None:
-                logger.warning("Request blocked due to session management failure from %s (no auth required)", getattr(self, 'client_ip', 'unknown'))
+                logger.warning(
+                    f"Request blocked due to session management failure from {getattr(self, 'client_ip', 'unknown')} "
+                    f"(no auth required)"
+                )
                 self.send_error(500, "Internal Server Error - Session management failed")
             else:
-                logger.warning("Unauthorized access attempt from %s - missing or invalid API key", getattr(self, 'client_ip', 'unknown'))
+                logger.warning(
+                    f"Unauthorized access attempt from {getattr(self, 'client_ip', 'unknown')} - missing or invalid API key"
+                )
                 self.send_error(401, "Unauthorized - API key required")
             return
 
@@ -1382,10 +1397,15 @@ class SecureDashboardHandler(http.server.BaseHTTPRequestHandler):
         if not self._require_api_key():
             # Provide helpful error message based on authentication mode
             if self.API_KEY is None:
-                logger.warning("POST request blocked due to session management failure from %s (no auth required)", getattr(self, 'client_ip', 'unknown'))
+                logger.warning(
+                    f"POST request blocked due to session management failure from {getattr(self, 'client_ip', 'unknown')} "
+                    f"(no auth required)"
+                )
                 self.send_error(500, "Internal Server Error - Session management failed")
             else:
-                logger.warning("Unauthorized POST request from %s - missing or invalid API key", getattr(self, 'client_ip', 'unknown'))
+                logger.warning(
+                    f"Unauthorized POST request from {getattr(self, 'client_ip', 'unknown')} - missing or invalid API key"
+                )
                 self.send_error(401, "Unauthorized - API key required")
             return
 
@@ -1499,13 +1519,13 @@ class SecureDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'status': 'success'}).encode())
 
         except ValueError as exc:
-            logger.warning("Invalid %s payload: %s", data_type, exc)
+            logger.warning(f"Invalid {data_type} payload: {exc}")
             self.send_response(400)
             self.send_security_headers()
             self.end_headers()
             self.wfile.write(json.dumps({'status': 'error', 'message': 'Invalid payload'}).encode())
         except Exception as exc:
-            logger.error("Error handling %s API call: %s", data_type, exc)
+            logger.error(f"Error handling {data_type} API call: {exc}")
             self.send_response(500)
             self.send_security_headers()
             self.end_headers()
@@ -1682,7 +1702,7 @@ class SecureDashboardHandler(http.server.BaseHTTPRequestHandler):
             }
 
         except Exception as e:
-            logger.error("Error reading live trading data: %s", e)
+            logger.error(f"Error reading live trading data: {e}")
             # Fallback to static data
             return dashboard_data
 
@@ -1832,7 +1852,7 @@ if __name__ == "__main__":
                 api_key = stored_key
                 print("🔑 Loaded stored dashboard API key from secure storage")
         except Exception as exc:
-            logger.warning("Unable to load stored dashboard API key: %s", exc)
+            logger.warning(f"Unable to load stored dashboard API key: {exc}")
 
     # Store API key if requested
     if api_key and args.store_api_key:

@@ -48,23 +48,31 @@ def setup_zerodha_authentication() -> Optional[object]:
     # Load credentials from environment variables
     API_KEY = os.getenv('ZERODHA_API_KEY')
     API_SECRET = os.getenv('ZERODHA_API_SECRET')
-    
-    # If not in environment, prompt user
+    interactive = sys.stdin.isatty()
+
+    # If not in environment, prompt user only when interactive.
     if not API_KEY or not API_SECRET:
         logger.info("ℹ️  No credentials found in environment")
-        response = input("\n🔐 Enter API credentials? (y/n, default=y): ").strip().lower()
-        
-        if response != 'n':
-            print("\n🔐 Please enter your Zerodha API credentials:")
-            API_KEY = input("   API Key: ").strip()
-            API_SECRET = input("   API Secret: ").strip()
-            
-            if API_KEY and API_SECRET:
-                logger.info("✅ API credentials entered manually")
+
+        if interactive:
+            response = input("\n🔐 Enter API credentials? (y/n, default=y): ").strip().lower()
+
+            if response != 'n':
+                print("\n🔐 Please enter your Zerodha API credentials:")
+                API_KEY = input("   API Key: ").strip()
+                API_SECRET = input("   API Secret: ").strip()
+
+                if API_KEY and API_SECRET:
+                    logger.info("✅ API credentials entered manually")
+                else:
+                    logger.warning("⚠️  No credentials provided - limited functionality")
             else:
-                logger.warning("⚠️  No credentials provided - limited functionality")
+                logger.info("   Continuing without broker connection (limited functionality)")
         else:
-            logger.info("   Continuing without broker connection (limited functionality)")
+            logger.warning(
+                "⚠️  Zerodha credentials missing and interactive input unavailable. "
+                "Set ZERODHA_API_KEY and ZERODHA_API_SECRET for live trading."
+            )
     
     # Authenticate with Zerodha
     if API_KEY and API_SECRET:
@@ -94,8 +102,25 @@ def ensure_dashboard_api_key(interactive: bool = True) -> str:
         API key string (possibly generated for this session)
     """
     existing = os.getenv("DASHBOARD_API_KEY")
+    key_file = Path('state/dashboard_api_key.txt')
+
     if existing:
+        # Persist the provided key for future runs
+        try:
+            key_file.parent.mkdir(parents=True, exist_ok=True)
+            key_file.write_text(existing.strip())
+        except Exception as exc:
+            logger.warning(f"Could not persist dashboard API key: {exc}")
         return existing
+
+    if key_file.exists():
+        try:
+            persisted = key_file.read_text().strip()
+            if persisted:
+                os.environ["DASHBOARD_API_KEY"] = persisted
+                return persisted
+        except Exception as exc:
+            logger.warning(f"Could not read persisted dashboard API key: {exc}")
 
     def _generate_key() -> str:
         return secrets.token_urlsafe(24)
@@ -113,6 +138,11 @@ def ensure_dashboard_api_key(interactive: bool = True) -> str:
         logger.info("Generated temporary DASHBOARD_API_KEY for this session.")
 
     os.environ["DASHBOARD_API_KEY"] = api_key
+    try:
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        key_file.write_text(api_key)
+    except Exception as exc:
+        logger.warning(f"Could not persist dashboard API key: {exc}")
     return api_key
 
 
@@ -371,7 +401,7 @@ def run_fno_trading(kite, mode: str, dashboard: Optional[DashboardConnector] = N
         fno_portfolio.save_state_to_files()
 
 
-def start_dashboard() -> Optional[subprocess.Popen]:
+def start_dashboard(use_https: bool = True) -> Optional[subprocess.Popen]:
     """
     REFACTOR: Start dashboard using centralized DashboardManager
 
@@ -382,9 +412,20 @@ def start_dashboard() -> Optional[subprocess.Popen]:
 
     logger.info("📊 Starting Dashboard...")
 
+    # Ensure API key exists for dashboard authentication
+    try:
+        ensure_dashboard_api_key(interactive=sys.stdin.isatty())
+    except Exception as exc:
+        logger.warning(f"Could not ensure DASHBOARD_API_KEY: {exc}")
+
     try:
         manager = DashboardManager()
-        return manager.start(open_browser=True)
+        base_url = os.environ.get(
+            'DASHBOARD_BASE_URL',
+            'https://localhost:8080' if use_https else 'http://localhost:8080'
+        )
+        os.environ['DASHBOARD_BASE_URL'] = base_url
+        return manager.start(base_url=base_url, use_https=use_https, open_browser=True)
     except Exception as e:
         logger.error(f"Dashboard failed to start: {e}")
         return None
@@ -466,8 +507,11 @@ def main():
         dashboard = None
         try:
             print("📊 Starting dashboard...")
-            dashboard_process = start_dashboard()
-            dashboard_url = os.environ.get('DASHBOARD_BASE_URL', 'https://localhost:8080')
+            dashboard_process = start_dashboard(use_https=(args.mode == 'live'))
+            dashboard_url = os.environ.get(
+                'DASHBOARD_BASE_URL',
+                'https://localhost:8080' if args.mode == 'live' else 'http://localhost:8080'
+            )
             time.sleep(2)
             dashboard = DashboardConnector(base_url=dashboard_url, api_key=os.getenv("DASHBOARD_API_KEY"))
             if dashboard.is_connected:
@@ -526,8 +570,11 @@ def main():
                 dashboard = None
                 try:
                     print("📊 Starting dashboard...")
-                    dashboard_process = start_dashboard()
-                    dashboard_url = os.environ.get('DASHBOARD_BASE_URL', 'https://localhost:8080')
+                    dashboard_process = start_dashboard(use_https=(fno_mode == "3"))
+                    dashboard_url = os.environ.get(
+                        'DASHBOARD_BASE_URL',
+                        'https://localhost:8080' if fno_mode == "3" else 'http://localhost:8080'
+                    )
                     time.sleep(2)
                     dashboard = DashboardConnector(base_url=dashboard_url, api_key=os.getenv("DASHBOARD_API_KEY"))
                     if dashboard.is_connected:

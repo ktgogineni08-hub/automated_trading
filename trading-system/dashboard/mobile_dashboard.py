@@ -102,6 +102,9 @@ class MobileDashboardServer:
         if enable_cors:
             self._setup_cors()
 
+        # Setup security headers
+        self._setup_security_headers()
+
         logger.info(f"📱 Mobile Dashboard Server initialized on {host}:{port}")
 
     def _setup_routes(self):
@@ -134,6 +137,78 @@ class MobileDashboardServer:
         # Configure CORS on all routes
         for route in list(self.app.router.routes()):
             cors.add(route)
+
+    def _setup_security_headers(self):
+        """
+        Setup security headers middleware for production hardening
+
+        Headers added:
+        - Content-Security-Policy: Prevents XSS, code injection attacks
+        - X-Frame-Options: Prevents clickjacking attacks
+        - X-Content-Type-Options: Prevents MIME type sniffing
+        - Strict-Transport-Security: Forces HTTPS connections
+        - Referrer-Policy: Controls referrer information leakage
+        - X-XSS-Protection: Legacy XSS protection (defense in depth)
+        - Permissions-Policy: Controls browser features/APIs
+        """
+        @web.middleware
+        async def security_headers_middleware(request, handler):
+            response = await handler(request)
+
+            # Content Security Policy - prevents XSS and injection attacks
+            # Allows content only from same origin, WebSocket connections, and inline styles/scripts
+            response.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "connect-src 'self' ws: wss:; "
+                "font-src 'self'; "
+                "object-src 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self'; "
+                "frame-ancestors 'none';"
+            )
+
+            # Prevent clickjacking - deny embedding in iframes
+            response.headers['X-Frame-Options'] = 'DENY'
+
+            # Prevent MIME type sniffing - forces declared content type
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+
+            # Force HTTPS for 1 year (31536000 seconds)
+            # includeSubDomains applies to all subdomains
+            # preload allows inclusion in browser HSTS preload lists
+            response.headers['Strict-Transport-Security'] = (
+                'max-age=31536000; includeSubDomains; preload'
+            )
+
+            # Control referrer information - prevent leaking URLs
+            response.headers['Referrer-Policy'] = 'no-referrer'
+
+            # Legacy XSS protection (defense in depth, most browsers have CSP now)
+            response.headers['X-XSS-Protection'] = '1; mode=block'
+
+            # Permissions Policy - restrict browser features
+            # Disables geolocation, camera, microphone, payment APIs
+            response.headers['Permissions-Policy'] = (
+                'geolocation=(), camera=(), microphone=(), payment=()'
+            )
+
+            # Additional security header - prevent DNS prefetching
+            response.headers['X-DNS-Prefetch-Control'] = 'off'
+
+            # Prevent browser caching of sensitive data
+            if request.path.startswith('/api/'):
+                response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+                response.headers['Pragma'] = 'no-cache'
+                response.headers['Expires'] = '0'
+
+            return response
+
+        # Add middleware to app
+        self.app.middlewares.append(security_headers_middleware)
+        logger.info("🔒 Security headers middleware enabled")
 
     async def handle_index(self, request):
         """Serve mobile dashboard HTML"""

@@ -469,6 +469,16 @@ def initialize_security(master_password: str = None) -> None:
     """Initialize global security components"""
     global _key_manager, _state_manager, _path_protector, _data_protector, _session_manager, _security_auditor
 
+    if all(component is not None for component in (
+        _key_manager,
+        _state_manager,
+        _path_protector,
+        _data_protector,
+        _session_manager,
+        _security_auditor
+    )):
+        return
+
     _key_manager = SecureKeyManager(master_password)
     _state_manager = SecureStateManager(master_password)
     _path_protector = PathTraversalProtector(Path.cwd())

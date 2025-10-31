@@ -72,9 +72,11 @@ class ConfigurationValidator:
     def _validate_environment_variables(self):
         """Validate required environment variables"""
         # Required for all modes
-        required_vars = {
-            'DASHBOARD_API_KEY': 'Dashboard authentication key'
-        }
+        required_vars = {}
+
+        # DASHBOARD_API_KEY is mandatory only for live trading to enforce authentication
+        if self.trading_mode == 'live':
+            required_vars['DASHBOARD_API_KEY'] = 'Dashboard authentication key'
 
         # Additional requirements for live trading
         # CRITICAL FIX: Use correct env var names (ZERODHA_*, not KITE_*)

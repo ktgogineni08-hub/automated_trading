@@ -566,11 +566,30 @@ class FNOTerminal:
         print("=" * 80)
 
         iteration = 0
+        shutdown_reason = "stopped"
+        archival_completed = False
         try:
             while True:
+                now_ist = datetime.now(self.market_hours.ist)
+                if not self.market_hours.is_market_open():
+                    shutdown_reason = "market_closed"
+                    print("\n🛎️ Market closed at 15:30 IST. Wrapping up trading session...")
+                    if not archival_completed:
+                        try:
+                            print("💾 Performing automatic end-of-day archival...")
+                            self._perform_end_of_day_archival()
+                        except Exception as exc:
+                            print(f"❌ End-of-day archival failed: {exc}")
+                            logger.error(f"End-of-day archival failed: {exc}", exc_info=True)
+                        try:
+                            self.portfolio.save_state_to_files()
+                        except Exception as exc:
+                            logger.debug(f"Final portfolio save failed before exit: {exc}")
+                        archival_completed = True
+                    break
+
                 iteration += 1
                 self.iteration = iteration
-                now_ist = datetime.now(self.market_hours.ist)
                 print(f"\n🔍 Iteration {iteration} — {now_ist.strftime('%Y-%m-%d %H:%M:%S')} IST")
                 print("-" * 70)
 
@@ -730,7 +749,7 @@ class FNOTerminal:
 
             if self.portfolio.dashboard:
                 try:
-                    self.portfolio.dashboard.send_system_status(False, iteration, "stopped")
+                    self.portfolio.dashboard.send_system_status(False, iteration, shutdown_reason)
                 except Exception:
                     pass
 

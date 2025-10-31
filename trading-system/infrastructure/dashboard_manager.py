@@ -40,6 +40,36 @@ class DashboardManager:
         self.base_url: Optional[str] = None
         self.api_key: Optional[str] = None
 
+    def _prepare_certificate(self, cert_path: Path, key_path: Path) -> bool:
+        """
+        Ensure dashboard certificate files exist.
+
+        Generates a self-signed certificate when missing (development usage).
+        """
+        if cert_path.exists() and key_path.exists():
+            return True
+
+        try:
+            cert_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            logger.warning(f"❌ Could not create certificate directory: {exc}")
+            return False
+
+        try:
+            from enhanced_dashboard_server import generate_self_signed_certificate
+
+            logger.info("🔐 Generating self-signed dashboard certificate for local HTTPS...")
+            generated_cert, generated_key = generate_self_signed_certificate(
+                cert_file=str(cert_path),
+                key_file=str(key_path)
+            )
+            if generated_cert and generated_key:
+                logger.info(f"✅ Dashboard certificate ready at {generated_cert}")
+                return True
+        except Exception as exc:
+            logger.warning(f"❌ Failed to prepare dashboard certificate: {exc}")
+
+        return cert_path.exists() and key_path.exists()
     def validate_security_requirements(self) -> tuple[bool, str]:
         """
         Validate security requirements before starting dashboard
@@ -114,14 +144,40 @@ class DashboardManager:
             env['DEVELOPMENT_MODE'] = 'false'
             logger.info("✅ Starting dashboard in PRODUCTION MODE (auth required)")
 
-        # Set dashboard URL
+        # Set dashboard URL and determine protocol
         self.base_url = base_url or os.environ.get('DASHBOARD_BASE_URL', 'https://localhost:8080')
         env['DASHBOARD_BASE_URL'] = self.base_url
+        os.environ['DASHBOARD_BASE_URL'] = self.base_url
+
+        effective_use_https = use_https
+        cert_path: Optional[Path] = None
+        key_path: Optional[Path] = None
+
+        if effective_use_https:
+            cert_path = Path(env.get('DASHBOARD_CERT_FILE', 'certs/dashboard.crt'))
+            key_path = Path(env.get('DASHBOARD_KEY_FILE', 'certs/dashboard.key'))
+
+            if not self._prepare_certificate(cert_path, key_path):
+                logger.warning("⚠️ Dashboard certificate unavailable - falling back to HTTP mode")
+                effective_use_https = False
+
+        if not effective_use_https and self.base_url.startswith('https://'):
+            self.base_url = self.base_url.replace('https://', 'http://', 1)
+            env['DASHBOARD_BASE_URL'] = self.base_url
+            os.environ['DASHBOARD_BASE_URL'] = self.base_url
 
         # Build command
         cmd = [sys.executable, self.dashboard_file]
-        if use_https:
+        if effective_use_https:
             cmd.append('--https')
+            if cert_path and key_path:
+                cmd.extend(['--cert', str(cert_path), '--key', str(key_path)])
+                env['DASHBOARD_CERT_FILE'] = str(cert_path)
+                env['DASHBOARD_KEY_FILE'] = str(key_path)
+                os.environ['DASHBOARD_CERT_FILE'] = str(cert_path)
+                os.environ['DASHBOARD_KEY_FILE'] = str(key_path)
+        else:
+            cmd.append('--allow-http')
         if self.api_key:
             cmd.extend(['--api-key', self.api_key])
 
@@ -136,8 +192,13 @@ class DashboardManager:
                 stdin=subprocess.DEVNULL
             )
 
-            # Wait for startup
-            time.sleep(3)
+            # Wait for startup/health check
+            start_time = time.time()
+            health_timeout = 30  # seconds
+            while time.time() - start_time < health_timeout:
+                if self.check_health():
+                    break
+                time.sleep(0.5)
 
             # Open browser if requested
             if open_browser:
@@ -175,13 +236,46 @@ class DashboardManager:
 
             # Disable TLS verification if requested (local dev only)
             verify_tls = os.getenv('DASHBOARD_DISABLE_TLS_VERIFY', 'false').lower() != 'true'
+            verify: bool | str
+
+            if not verify_tls:
+                verify = False
+            else:
+                cert_file = os.getenv('DASHBOARD_CERT_FILE')
+                if cert_file and os.path.exists(cert_file):
+                    verify = cert_file
+                else:
+                    verify = True
+
+            headers = {}
+            if self.api_key:
+                headers['X-API-Key'] = self.api_key
 
             response = requests.get(
                 f"{self.base_url}/health",
                 timeout=timeout,
-                verify=verify_tls
+                verify=verify,
+                headers=headers
             )
             return response.status_code == 200
+
+        except requests.exceptions.SSLError as ssl_err:
+            logger.warning(
+                "⚠️ Dashboard TLS verification failed (%s). "
+                "Falling back to insecure health check for local development.",
+                ssl_err
+            )
+            try:
+                response = requests.get(
+                    f"{self.base_url}/health",
+                    timeout=timeout,
+                    verify=False,
+                    headers=headers
+                )
+                return response.status_code == 200
+            except Exception as retry_exc:
+                logger.debug(f"Dashboard health retry (insecure) failed: {retry_exc}")
+                return False
 
         except Exception as e:
             logger.debug(f"Dashboard health check failed: {e}")

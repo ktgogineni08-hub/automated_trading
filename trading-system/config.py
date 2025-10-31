@@ -10,6 +10,17 @@ from pathlib import Path
 from datetime import datetime, time
 from typing import Dict, Any, Optional
 
+# Import centralized constants
+try:
+    from constants import (
+        APIConfig, TradingConfig as TradingConst, DatabaseConfig, RedisConfig,
+        AlertConfig, FNOConfig, DashboardConfig, LogConfig
+    )
+    CONSTANTS_AVAILABLE = True
+except ImportError:
+    CONSTANTS_AVAILABLE = False
+    # Fallback to hardcoded values if constants.py not available
+
 class TradingConfig:
     """Centralized configuration management for the trading system"""
 

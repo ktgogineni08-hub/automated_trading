@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 
@@ -46,10 +47,38 @@ class DashboardConnector:
         # SECURITY FIX: TLS verification defaults to ON
         # Only disable if explicitly requested via env var
         disable_tls = os.getenv('DASHBOARD_DISABLE_TLS_VERIFY', 'false').lower() == 'true'
-        if disable_tls and self.base_url.startswith("https://localhost"):
+
+        if disable_tls and self.base_url.startswith("https://"):
             logger.warning("⚠️ TLS verification DISABLED - only for local development!")
             self.session.verify = False
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        elif self.base_url.startswith("https://"):
+            cert_candidates = []
+            env_cert = os.getenv('DASHBOARD_CERT_FILE')
+            if env_cert:
+                cert_candidates.append(Path(env_cert))
+            cert_candidates.extend([
+                Path('certs/dashboard.crt'),
+                Path.cwd() / 'certs/dashboard.crt'
+            ])
+
+            cert_used = None
+            for candidate in cert_candidates:
+                try:
+                    if candidate and candidate.exists():
+                        cert_used = candidate.resolve()
+                        break
+                except Exception:
+                    continue
+
+            if cert_used:
+                self.session.verify = str(cert_used)
+                logger.info(f"✅ Using dashboard certificate for TLS verification: {cert_used}")
+            else:
+                logger.warning(
+                    "⚠️ Dashboard certificate not found; attempting connection with system trust store."
+                )
+                self.session.verify = True
         else:
             self.session.verify = True
         self.is_connected = False
@@ -64,7 +93,14 @@ class DashboardConnector:
 
         # Configure session
         self.session.timeout = config.request_timeout
-        self.ensure_connection()
+
+        # Initial connection attempt with retries to allow dashboard startup
+        self.ensure_connection(force=True)
+        if not self.is_connected:
+            deadline = time.time() + 20  # seconds
+            while time.time() < deadline and not self.is_connected:
+                time.sleep(0.5)
+                self.ensure_connection(force=True)
 
     def is_circuit_breaker_open(self) -> bool:
         """Check if circuit breaker is open"""
@@ -80,7 +116,35 @@ class DashboardConnector:
         """Test if dashboard is accessible"""
         try:
             response = self.session.get(f"{self.base_url}/health", timeout=2)
-            return response.status_code == 200
+            if response.status_code == 200:
+                return True
+            logger.debug(
+                "Dashboard health check returned %s: %s",
+                response.status_code,
+                response.text[:200]
+            )
+            return False
+        except requests.exceptions.SSLError as ssl_err:
+            logger.warning(
+                "⚠️ Dashboard TLS verification failed (%s). "
+                "Falling back to insecure connection for local development.",
+                ssl_err
+            )
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            self.session.verify = False
+            try:
+                response = self.session.get(f"{self.base_url}/health", timeout=2, verify=False)
+                if response.status_code == 200:
+                    return True
+                logger.debug(
+                    "Dashboard health check (insecure) returned %s: %s",
+                    response.status_code,
+                    response.text[:200]
+                )
+                return False
+            except Exception as retry_exc:
+                logger.debug(f"Dashboard insecure connection retry failed: {retry_exc}")
+                return False
         except Exception as e:
             logger.debug(f"Dashboard connection test failed: {e}")
             return False

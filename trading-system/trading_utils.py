@@ -463,6 +463,13 @@ class GracefulShutdown:
         """Check if shutdown was requested"""
         return self.shutdown_requested
 
+    def request_stop(self, reason: Optional[str] = None):
+        """Programmatically request shutdown (used for market-close auto stop)"""
+        if not self.shutdown_requested:
+            if reason:
+                logger.info(f"Shutdown requested: {reason}")
+            self.shutdown_requested = True
+
 
 def setup_graceful_shutdown(cleanup_func: Callable) -> GracefulShutdown:
     """

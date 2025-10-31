@@ -106,6 +106,9 @@ class RobustTradingLoop:
             try:
                 # Check market hours
                 if not self._check_market_hours():
+                    if self.shutdown_handler.should_stop():
+                        logger.info("🛑 Shutdown requested - exiting trading loop")
+                        break
                     time.sleep(60)  # Check again in 1 minute
                     continue
 
@@ -254,6 +257,9 @@ class RobustTradingLoop:
 
             if should_stop:
                 logger.info(f"Trading not allowed: {reason}")
+                if hasattr(self.shutdown_handler, "request_stop") and reason in {"market_closed", "market_closed_weekend"}:
+                    logger.info("🕰️ Market close detected - requesting graceful shutdown")
+                    self.shutdown_handler.request_stop(reason)
                 return False
 
             return True
