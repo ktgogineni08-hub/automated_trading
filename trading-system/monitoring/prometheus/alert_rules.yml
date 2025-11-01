@@ -202,7 +202,7 @@ groups:
         annotations:
           summary: "High rate of unauthorized access attempts"
           description: "{{ $value }} unauthorized attempts per second"
-          
+
       - alert: SuspiciousActivity
         expr: rate(security_violations_total[5m]) > 1
         for: 1m
@@ -212,7 +212,7 @@ groups:
         annotations:
           summary: "Suspicious security activity detected"
           description: "{{ $value }} security violations per second"
-          
+
       - alert: RateLimitExceeded
         expr: rate(rate_limit_exceeded_total[5m]) > 10
         for: 5m
@@ -221,3 +221,186 @@ groups:
         annotations:
           summary: "High rate of rate limit violations"
           description: "{{ $value }} rate limit violations per second"
+
+  # ========================================
+  # HIGH AVAILABILITY MONITORING
+  # ========================================
+  - name: high_availability
+    interval: 30s
+    rules:
+      # PostgreSQL HA Monitoring
+      - alert: PostgreSQLPrimaryDown
+        expr: up{job="postgres-primary"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          ha_role: primary
+        annotations:
+          summary: "PostgreSQL Primary is down"
+          description: "PostgreSQL primary database is unavailable. Automatic failover should occur."
+
+      - alert: PostgreSQLNoReplicas
+        expr: pg_stat_replication_clients < 1
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "No PostgreSQL replicas connected"
+          description: "No replica databases connected to primary. High availability compromised."
+
+      - alert: PostgreSQLReplicationLagHigh
+        expr: pg_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High PostgreSQL replication lag"
+          description: "Replication lag is {{ $value }}s (threshold: 30s)"
+
+      - alert: PostgreSQLReplicationLagCritical
+        expr: pg_replication_lag_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Critical PostgreSQL replication lag"
+          description: "Replication lag is {{ $value }}s (threshold: 300s) - data loss risk"
+
+      - alert: PostgreSQLReplicationBroken
+        expr: pg_replication_lag_seconds > 600
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL replication appears broken"
+          description: "Replication lag exceeds 10 minutes - replication may be broken"
+
+      # Redis HA Monitoring
+      - alert: RedisMasterDown
+        expr: up{job="redis-master"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+          ha_role: master
+        annotations:
+          summary: "Redis Master is down"
+          description: "Redis master is unavailable. Sentinel should promote a replica."
+
+      - alert: RedisSentinelQuorumLost
+        expr: redis_sentinel_masters_status < 2
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis Sentinel quorum lost"
+          description: "Not enough Sentinel instances ({{ $value }}) to maintain quorum. Need at least 2."
+
+      - alert: RedisNoReplicas
+        expr: redis_connected_slaves < 1
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "No Redis replicas connected"
+          description: "No replica instances connected to master. High availability compromised."
+
+      - alert: RedisReplicationLagHigh
+        expr: redis_replication_lag_seconds > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "High Redis replication lag"
+          description: "Replication lag is {{ $value }}s"
+
+      - alert: RedisSentinelDown
+        expr: count(up{job="redis-sentinel"} == 1) < 2
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis Sentinel instances down"
+          description: "Only {{ $value }} Sentinel instances available. Need at least 2 for quorum."
+
+      # Application Pod HA Monitoring
+      - alert: TradingSystemLowReplicas
+        expr: kube_deployment_status_replicas_available{deployment="trading-system"} < 2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "Trading System has insufficient replicas"
+          description: "Only {{ $value }} replica(s) available (minimum: 2 for HA)"
+
+      - alert: TradingSystemNoReplicas
+        expr: kube_deployment_status_replicas_available{deployment="trading-system"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Trading System has no available replicas"
+          description: "All trading system pods are down - service completely unavailable"
+
+      - alert: TradingSystemPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"trading-system-.*"}[15m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "Trading System pod crash looping"
+          description: "Pod {{ $labels.pod }} is crash looping"
+
+      - alert: LoadBalancerNoHealthyBackends
+        expr: (sum(kube_deployment_status_replicas_ready{deployment="trading-system"}) / sum(kube_deployment_spec_replicas{deployment="trading-system"})) < 0.5
+        for: 3m
+        labels:
+          severity: critical
+          component: loadbalancer
+        annotations:
+          summary: "Less than 50% of backends are healthy"
+          description: "Only {{ $value | humanizePercentage }} of backends are healthy"
+
+      # Cluster Health
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Kubernetes node not ready"
+          description: "Node {{ $labels.node }} is not ready"
+
+      # Failover Detection
+      - alert: DatabaseFailoverDetected
+        expr: changes(pg_replication_master_server_id[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL failover detected"
+          description: "Database failover occurred - new primary elected"
+
+      - alert: RedisFailoverDetected
+        expr: changes(redis_master_server_id[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis failover detected"
+          description: "Redis failover occurred - Sentinel promoted new master"

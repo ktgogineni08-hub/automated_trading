@@ -1,320 +1,284 @@
-# Trading System - Quick Reference Card
+# Quick Reference Card
+## Enhanced NIFTY 50 Trading System
 
-**Version:** 2.0 (Modular Architecture)
-**Status:** ✅ PRODUCTION READY
-**Date:** 2025-10-21
+**Print this card and keep it handy for daily operations**
 
 ---
 
-## 🚀 Quick Start
+## 🚨 EMERGENCY CONTACTS
 
+| Role | Contact | Use For |
+|------|---------|---------|
+| **On-Call Engineer** | PagerDuty | Critical alerts (P0/P1) |
+| **Engineering Lead** | +91-XXX-1001 | Escalation |
+| **DBA** | +91-XXX-1002 | Database issues |
+| **Trading Lead** | +91-XXX-1003 | Business decisions |
+
+**War Room:** https://meet.google.com/emergency
+
+---
+
+## ⚡ EMERGENCY PROCEDURES
+
+### Stop Trading Immediately
 ```bash
-# Launch the trading system
-python3 main.py
-
-# Access dashboard
-http://localhost:8080
-
-# Run health check
-python system_health_check.py
-
-# Setup Zerodha token
-python zerodha_token_manager.py
+docker-compose exec trading-system python3 -c "
+import trading_utils
+trading_utils.disable_trading()
+"
 ```
 
----
-
-## 📊 System Status
-
-| Metric | Status |
-|--------|--------|
-| **Refactoring** | ✅ 100% Complete |
-| **Classes** | ✅ 41/41 Extracted |
-| **Modules** | ✅ 6 Created |
-| **Tests** | ✅ 10/10 Passed |
-| **Code Review** | ✅ Approved |
-| **Production** | ✅ Ready |
-
----
-
-## 📁 Module Structure
-
-```
-main.py                 # Entry point
-├── strategies/         # 6 trading strategies
-├── infrastructure/     # Rate limiting, caching, security
-├── data/              # Market data provider
-├── core/              # Trading system, portfolio, signals
-├── fno/               # F&O trading (8 files)
-└── utilities/         # Logger, state, validators
-```
-
----
-
-## 🎯 Key Features
-
-- ✅ **Paper Trading** - Safe simulation mode
-- ✅ **Live Trading** - Real money with Zerodha
-- ✅ **Backtesting** - Historical analysis
-- ✅ **F&O Trading** - Options & Futures
-- ✅ **BFO Support** - SENSEX, BANKEX (BSE F&O)
-- ✅ **Dashboard** - Real-time monitoring
-- ✅ **Risk Management** - Position sizing, stop-loss
-- ✅ **Auto Token** - Zerodha authentication
-
----
-
-## 📚 Documentation
-
-### Guides
-- [Migration Guide](Documentation/Guides/MIGRATION_GUIDE.md) - How to migrate
-- [Deployment Checklist](Documentation/Guides/DEPLOYMENT_CHECKLIST.md) - Pre-deployment steps
-- [Quick Start Guide](Documentation/Guides/QUICK_START_GUIDE.md) - Getting started
-- [F&O Trading Guide](Documentation/Guides/FUTURES_TRADING_GUIDE.md) - F&O strategies
-
-### Reports
-- [Project Completion](Documentation/Reports/PROJECT_COMPLETION_STATUS.md) - Full status
-- [Code Review](Documentation/Reports/COMPREHENSIVE_CODE_REVIEW.md) - Security & quality
-- [Recheck Report](Documentation/Reports/RECHECK_REPORT.md) - Component verification
-
----
-
-## 🔧 Common Commands
-
+### Close All Positions
 ```bash
-# System Health
-python system_health_check.py
-
-# Authentication
-python zerodha_token_manager.py
-
-# Launch Trading (New)
-python3 main.py
-
-# Launch Trading (Legacy)
-python3 enhanced_trading_system_complete.py
-
-# Install Dependencies
-pip install -r requirements.txt
+docker-compose exec trading-system python3 scripts/emergency_close_all.py
 ```
 
----
-
-## 📈 Performance
-
-| Metric | Improvement |
-|--------|-------------|
-| API Calls | 70-80% fewer |
-| Load Time | ~40% faster |
-| Memory | Optimized |
-| Maintainability | Significantly better |
-
----
-
-## ✅ Verification Tests
-
-All tests passing:
-
-```
-✅ Core Trading System
-✅ Signal Aggregator
-✅ Regime Detector
-✅ Rate Limiter
-✅ Cache Manager
-✅ Base Strategy
-✅ FNO Analytics
-✅ FNO Backtester
-✅ FNO Data Provider
-✅ FNO Strategies
-```
-
----
-
-## 🎯 Next Steps for Production
-
-1. **System Health Check**
-   ```bash
-   python system_health_check.py
-   ```
-
-2. **Setup Zerodha Token**
-   ```bash
-   python zerodha_token_manager.py
-   ```
-
-3. **Start Paper Trading**
-   ```bash
-   python3 main.py
-   # Select: Paper Trading
-   ```
-
-4. **Monitor for 2-3 Days**
-   - Check logs in `logs/` directory
-   - Verify trades in dashboard
-   - Test all strategies
-
-5. **Go Live** (When Ready)
-   ```bash
-   python3 main.py
-   # Select: Live Trading
-   ```
-
----
-
-## 🔍 Trading Modes
-
-### NIFTY 50 Trading
-- Paper Trading (simulation)
-- Backtesting (historical)
-- Live Trading (real money)
-
-### F&O Trading
-- Straddle Strategy
-- Strangle Strategy
-- Iron Condor Strategy
-- Butterfly Strategy
-
-### Indices Supported
-- **NSE:** NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY
-- **BSE:** SENSEX, BANKEX (BFO)
-
----
-
-## ⚙️ Configuration
-
-Edit `config.py` for:
-- Default capital (₹10,00,000)
-- Risk per trade (2%)
-- Trading hours (09:15-15:30)
-- Dashboard port (8080)
-- API rate limits
-
----
-
-## 🛡️ Risk Management
-
-- Position sizing: 2% per trade
-- Stop-loss: Automatic
-- Portfolio limits: Configurable
-- Real-time monitoring
-- Correlation warnings
-- Circuit breaker protection
-
----
-
-## 📊 Dashboard
-
-Access at: `http://localhost:8080`
-
-Features:
-- Portfolio overview
-- Real-time P&L
-- Trade history
-- Performance metrics
-- System health
-- Market data
-
----
-
-## 🐛 Troubleshooting
-
-### Import Errors
+### Restart Trading System
 ```bash
-pip install -r requirements.txt
+docker-compose restart trading-system
 ```
 
-### Token Issues
+### Check System Health
 ```bash
-python zerodha_token_manager.py
-```
-
-### Module Not Found
-```bash
-# Verify you're in the right directory
-pwd
-# Should be: /path/to/trading-system
-```
-
-### Check Logs
-```bash
-tail -f logs/trading_*.log
+curl http://localhost:8080/health | jq .
 ```
 
 ---
 
-## 📞 Support
+## 📅 DAILY OPERATIONS
 
-### Documentation
-- See `Documentation/` folder
-- Read `README.md`
-- Check `*.md` files in project root
-
-### Health Check
+### Pre-Market (9:00 AM)
 ```bash
-python system_health_check.py
+# 1. Health check
+docker-compose ps
+
+# 2. Check logs
+docker logs trading-system --tail 50
+
+# 3. Verify backups
+ls -lh backups/ | head -3
+
+# 4. Check dashboards
+open http://localhost:3000
 ```
 
-### Log Files
-- Location: `logs/` directory
-- Format: `trading_YYYYMMDD.log`
-
----
-
-## ⚡ Performance Tips
-
-1. **Use Paper Trading first** - Test without risk
-2. **Monitor API usage** - Respect rate limits
-3. **Check system health** - Run health check daily
-4. **Review logs regularly** - Catch issues early
-5. **Start with small positions** - Scale up gradually
-
----
-
-## 🎉 Production Ready
-
-The system is approved for production with:
-
-- **Code Quality:** 9.5/10 ⭐⭐⭐⭐⭐
-- **Security:** ✅ No vulnerabilities
-- **Error Handling:** ✅ Comprehensive
-- **Performance:** ✅ Optimized
-- **Threading:** ✅ Thread-safe
-- **Backward Compatible:** ✅ 100%
-
-**OVERALL:** ✅ **APPROVED FOR PRODUCTION**
-
----
-
-## 🔐 Security Checklist
-
-- ✅ No hardcoded credentials
-- ✅ Environment variables for API keys
-- ✅ Token encryption enabled
-- ✅ Input validation comprehensive
-- ✅ No SQL injection risks (no SQL used)
-- ✅ No code injection (no eval/exec)
-- ✅ Secure file operations
-
----
-
-## 📝 Migration Notes
-
-**Zero Breaking Changes**
-
-Old command still works:
+### Post-Market (3:30 PM)
 ```bash
-python3 enhanced_trading_system_complete.py
+# 1. Generate report
+docker-compose exec trading-system python3 scripts/daily_report.py
+
+# 2. Reconcile positions
+docker-compose exec trading-system python3 scripts/reconcile_positions.py
+
+# 3. Check backup
+tail logs/backups/backup_*.log
 ```
 
-New command (recommended):
+---
+
+## 🔍 COMMON ISSUES
+
+### Issue: System is Slow
+**Quick Fix:**
 ```bash
-python3 main.py
+# Check resources
+top
+free -h
+
+# Check slow queries
+docker logs trading-system | grep "slow query"
+
+# Clear Redis cache
+docker exec trading-redis redis-cli FLUSHDB
 ```
 
-Both provide identical functionality!
+### Issue: Trades Not Executing
+**Quick Fix:**
+```bash
+# Check if trading enabled
+docker-compose exec trading-system python3 -c "
+from trading_utils import is_trading_enabled
+print('Trading enabled:', is_trading_enabled())
+"
+
+# Check Zerodha API
+curl https://api.kite.trade
+```
+
+### Issue: Database Connection Failed
+**Quick Fix:**
+```bash
+# Check PostgreSQL
+docker ps | grep postgres
+
+# Restart if needed
+docker-compose restart postgres
+
+# Test connection
+docker exec trading-postgres psql -U trading_user -d trading_db -c "SELECT 1;"
+```
 
 ---
 
-*Last Updated: 2025-10-21*
-*Version: 2.0 (Modular Architecture)*
-*Status: Production Ready*
+## 📊 DASHBOARDS
+
+| Dashboard | URL | Use For |
+|-----------|-----|---------|
+| **Trading Activity** | http://localhost:3000/d/trading-activity | Real-time P&L, trades |
+| **System Health** | http://localhost:3000/d/system-health | Overall status |
+| **Performance** | http://localhost:3000/d/performance | Latency, queries |
+| **Alerts** | http://localhost:3000/d/alert-management | Active alerts |
+
+**Default Login:** admin / admin
+
+---
+
+## 🛠️ USEFUL COMMANDS
+
+### Check Status
+```bash
+./scripts/status.sh                    # Overall status
+docker-compose ps                      # Container status
+docker stats                           # Resource usage
+```
+
+### View Logs
+```bash
+./scripts/logs.sh                      # All logs
+docker logs trading-system -f          # App logs
+docker logs trading-postgres -f        # DB logs
+```
+
+### Backup & Restore
+```bash
+./scripts/backup.sh                    # Create backup
+./scripts/restore.sh backups/latest    # Restore
+```
+
+### Deploy
+```bash
+./scripts/deploy.sh                    # Deploy
+./scripts/deploy.sh rollback           # Rollback
+```
+
+---
+
+## 📈 KEY METRICS
+
+### Target Metrics
+- **Uptime:** 99.9%
+- **P95 Latency:** < 500ms
+- **Error Rate:** < 1%
+- **Win Rate:** > 55%
+- **Daily P&L:** > ₹10,000
+
+### Check Metrics
+```bash
+# Latency
+curl -w "@curl-format.txt" http://localhost:8080/api/status
+
+# Error rate
+docker logs trading-system | grep ERROR | wc -l
+
+# P&L
+curl http://localhost:8080/api/pnl | jq '.total_pnl'
+```
+
+---
+
+## 🔐 SECURITY
+
+### Secrets Location
+- Environment: `.env` (NEVER commit!)
+- AWS Secrets: `aws secretsmanager get-secret-value --secret-id trading-system`
+- API Keys: Encrypted in database
+
+### Access
+- **SSH:** Use SSH keys only (no passwords)
+- **VPN:** Required for production access
+- **MFA:** Required for all critical systems
+
+---
+
+## 📞 ESCALATION PATH
+
+```
+Level 1 (0-10 min):  On-Call Engineer (PagerDuty)
+         ↓
+Level 2 (10-20 min): Senior SRE + DBA
+         ↓
+Level 3 (20-30 min): Engineering Lead + App Owner
+         ↓
+Level 4 (30+ min):   CTO + Business Owner → Activate DR
+```
+
+---
+
+## 📚 DOCUMENTATION
+
+| Document | Location | Use For |
+|----------|----------|---------|
+| **Runbooks** | docs/INCIDENT_RESPONSE_RUNBOOKS.md | Incident response |
+| **DR Plan** | docs/DISASTER_RECOVERY_PLAN.md | Disaster recovery |
+| **Training** | docs/TEAM_TRAINING_GUIDE.md | Onboarding |
+| **Monitoring** | docs/MONITORING_ALERTING_PLAYBOOK.md | Alert response |
+
+---
+
+## ⏰ TRADING HOURS
+
+**NSE Market Hours:** 9:15 AM - 3:30 PM IST
+
+**Pre-Market:** 9:00 AM - 9:15 AM (system prep)
+**Market Hours:** 9:15 AM - 3:30 PM (active monitoring)
+**Post-Market:** 3:30 PM - 4:00 PM (reconciliation)
+
+**No deployments during market hours!** (Emergency fixes only)
+
+---
+
+## 🎯 RESPONSE TIMES
+
+| Severity | Acknowledge | Resolve |
+|----------|-------------|---------|
+| **P0 Critical** | < 5 min | < 30 min |
+| **P1 High** | < 15 min | < 2 hours |
+| **P2 Medium** | < 1 hour | < 8 hours |
+| **P3 Low** | < 8 hours | Next day |
+
+---
+
+## 💡 TIPS
+
+1. **Always check health before making changes**
+2. **Backup before deployments**
+3. **Monitor dashboards for 30 min after changes**
+4. **Document everything in incident tickets**
+5. **When in doubt, ask in #trading-system Slack**
+
+---
+
+## 🆘 "I DON'T KNOW WHAT TO DO"
+
+1. **Don't panic** - Take a breath
+2. **Check this card** - Common issues listed above
+3. **Check dashboards** - Visual system status
+4. **Check Slack** - #trading-alerts channel
+5. **Ask for help** - Escalate if needed
+
+**Remember:** It's better to ask than to guess!
+
+---
+
+## 📱 SLACK CHANNELS
+
+- **#trading-system** - General discussion
+- **#trading-alerts** - Automated alerts (monitor this!)
+- **#trading-incidents** - Active incidents
+- **#trading-deploys** - Deployment notifications
+
+---
+
+**Keep this card accessible at all times!**
+
+*Version: 1.0 | Updated: Nov 1, 2025*

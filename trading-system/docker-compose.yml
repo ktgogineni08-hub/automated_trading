@@ -189,31 +189,6 @@ services:
         max-file: "3"
 
   # ==========================================================================
-  # Redis - Caching and Session Storage
-  # ==========================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
-    volumes:
-      - redis-data:/data
-    networks:
-      - trading-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "3"
-
-  # ==========================================================================
   # NGINX - Reverse Proxy and Load Balancer
   # ==========================================================================
   nginx:
