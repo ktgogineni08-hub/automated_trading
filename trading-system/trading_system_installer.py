@@ -18,10 +18,20 @@ def print_header(title):
     print(f"{'='*60}")
 
 def run_command(command, description):
-    """Run a command with error handling"""
+    """Run a command with error handling
+
+    Args:
+        command: Command as a list (e.g., ['pip', '--version']) or string (will be split)
+        description: Description of the command for logging
+    """
     print(f"▶️ {description}...")
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        # Convert string to list if needed (safer than shell=True)
+        if isinstance(command, str):
+            import shlex
+            command = shlex.split(command)
+
+        result = subprocess.run(command, shell=False, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"✅ {description} completed successfully")
             if result.stdout.strip():
@@ -244,7 +254,7 @@ if __name__ == "__main__":
     if sys.platform != "win32":
         for script in scripts_created:
             try:
-                os.chmod(script, 0o755)
+                os.chmod(script, 0o755)  # nosec B103 - intentional: make script executable
             except:
                 pass
 
