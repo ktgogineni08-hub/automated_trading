@@ -12,13 +12,14 @@ Author: Trading System
 Date: October 22, 2025
 """
 
+import hashlib
+import hmac
 import logging
-from typing import Tuple, Dict, List, Optional
-from dataclasses import dataclass
-from collections import deque
 import random
-import pickle
+from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,31 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _write_checkpoint_hash(path: Path) -> None:
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    path.with_suffix(path.suffix + '.sha256').write_text(digest, encoding='utf-8')
+
+
+def _verify_checkpoint_hash(path: Path) -> None:
+    hash_path = path.with_suffix(path.suffix + '.sha256')
+    if not hash_path.exists():
+        logger.warning("Checkpoint hash missing for %s; skipping integrity check", path)
+        return
+    expected = hash_path.read_text(encoding='utf-8').strip()
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if not hmac.compare_digest(expected, actual):
+        raise ValueError(f"Integrity check failed for checkpoint {path}")
+
+
+def _torch_load_safely(path: Path, device):
+    if torch is None:
+        raise RuntimeError("PyTorch not available")
+    try:
+        return torch.load(path, map_location=device, weights_only=True)
+    except TypeError:
+        return torch.load(path, map_location=device)
 
 
 @dataclass
@@ -284,7 +310,11 @@ class DQNAgent:
     
     def load(self, path: str):
         """Load agent from disk"""
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except TypeError:
+            # Fallback for older PyTorch versions
+            checkpoint = torch.load(path, map_location=self.device)
         self.q_network.load_state_dict(checkpoint['q_network'])
         self.target_network.load_state_dict(checkpoint['target_network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -529,7 +559,11 @@ class PPOAgent:
     
     def load(self, path: str):
         """Load agent from disk"""
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except TypeError:
+            # Fallback for older PyTorch versions
+            checkpoint = torch.load(path, map_location=self.device)
         self.network.load_state_dict(checkpoint['network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.episode = checkpoint['episode']

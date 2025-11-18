@@ -1,0 +1,806 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "infrastructure",
+    "title": "Infrastructure Dashboard",
+    "tags": ["infrastructure", "resources", "capacity"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-3h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "type": "row",
+        "title": "Compute Resources"
+      },
+      {
+        "id": 2,
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 3
+        },
+        "type": "gauge",
+        "title": "CPU Usage",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 60
+                },
+                {
+                  "color": "orange",
+                  "value": 80
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 3
+        },
+        "type": "gauge",
+        "title": "Memory Usage",
+        "targets": [
+          {
+            "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "orange",
+                  "value": 85
+                },
+                {
+                  "color": "red",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 3
+        },
+        "type": "gauge",
+        "title": "Disk Usage",
+        "targets": [
+          {
+            "expr": "100 * (1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 75
+                },
+                {
+                  "color": "orange",
+                  "value": 85
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 3
+        },
+        "type": "gauge",
+        "title": "Load Average (5m)",
+        "targets": [
+          {
+            "expr": "node_load5 / count(node_cpu_seconds_total{mode=\"idle\"}) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 11
+        },
+        "type": "row",
+        "title": "Storage"
+      },
+      {
+        "id": 7,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        },
+        "type": "timeseries",
+        "title": "Disk I/O",
+        "targets": [
+          {
+            "expr": "rate(node_disk_read_bytes_total[5m])",
+            "refId": "A",
+            "legendFormat": "Read {{device}}"
+          },
+          {
+            "expr": "rate(node_disk_written_bytes_total[5m]) * -1",
+            "refId": "B",
+            "legendFormat": "Write {{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "Bps"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        },
+        "type": "timeseries",
+        "title": "Disk IOPS",
+        "targets": [
+          {
+            "expr": "rate(node_disk_reads_completed_total[5m])",
+            "refId": "A",
+            "legendFormat": "Read IOPS {{device}}"
+          },
+          {
+            "expr": "rate(node_disk_writes_completed_total[5m]) * -1",
+            "refId": "B",
+            "legendFormat": "Write IOPS {{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "unit": "iops"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 22
+        },
+        "type": "row",
+        "title": "Network"
+      },
+      {
+        "id": 10,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 25
+        },
+        "type": "timeseries",
+        "title": "Network Throughput",
+        "targets": [
+          {
+            "expr": "rate(node_network_receive_bytes_total{device!~\"lo|docker.*\"}[5m]) * 8",
+            "refId": "A",
+            "legendFormat": "RX {{device}}"
+          },
+          {
+            "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|docker.*\"}[5m]) * 8 * -1",
+            "refId": "B",
+            "legendFormat": "TX {{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "bps"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 25
+        },
+        "type": "timeseries",
+        "title": "Network Errors",
+        "targets": [
+          {
+            "expr": "rate(node_network_receive_errs_total[5m])",
+            "refId": "A",
+            "legendFormat": "RX Errors {{device}}"
+          },
+          {
+            "expr": "rate(node_network_transmit_errs_total[5m])",
+            "refId": "B",
+            "legendFormat": "TX Errors {{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80
+            },
+            "unit": "pps"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 33
+        },
+        "type": "row",
+        "title": "Docker Containers"
+      },
+      {
+        "id": 13,
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 0,
+          "y": 36
+        },
+        "type": "stat",
+        "title": "Running Containers",
+        "targets": [
+          {
+            "expr": "count(container_last_seen{name=~\".+\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "green",
+                  "value": 6
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 14,
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 8,
+          "y": 36
+        },
+        "type": "timeseries",
+        "title": "Container CPU Usage",
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m])) by (name) * 100",
+            "refId": "A",
+            "legendFormat": "{{name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 15,
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 16,
+          "y": 36
+        },
+        "type": "timeseries",
+        "title": "Container Memory Usage",
+        "targets": [
+          {
+            "expr": "sum(container_memory_usage_bytes{name=~\".+\"}) by (name)",
+            "refId": "A",
+            "legendFormat": "{{name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "unit": "bytes"
+          }
+        }
+      },
+      {
+        "id": 16,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 42
+        },
+        "type": "row",
+        "title": "Database Infrastructure"
+      },
+      {
+        "id": 17,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 45
+        },
+        "type": "timeseries",
+        "title": "PostgreSQL Connections",
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends{datname=\"trading_db\"}",
+            "refId": "A",
+            "legendFormat": "Active"
+          },
+          {
+            "expr": "pg_stat_activity_count{state=\"idle\"}",
+            "refId": "B",
+            "legendFormat": "Idle"
+          },
+          {
+            "expr": "pg_settings_max_connections",
+            "refId": "C",
+            "legendFormat": "Max"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 18,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 45
+        },
+        "type": "timeseries",
+        "title": "PostgreSQL Transaction Rate",
+        "targets": [
+          {
+            "expr": "rate(pg_stat_database_xact_commit{datname=\"trading_db\"}[5m])",
+            "refId": "A",
+            "legendFormat": "Commits"
+          },
+          {
+            "expr": "rate(pg_stat_database_xact_rollback{datname=\"trading_db\"}[5m])",
+            "refId": "B",
+            "legendFormat": "Rollbacks"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "unit": "tps"
+          }
+        }
+      },
+      {
+        "id": 19,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 45
+        },
+        "type": "timeseries",
+        "title": "PostgreSQL Cache Hit Ratio",
+        "targets": [
+          {
+            "expr": "100 * (sum(pg_stat_database_blks_hit{datname=\"trading_db\"}) / (sum(pg_stat_database_blks_hit{datname=\"trading_db\"}) + sum(pg_stat_database_blks_read{datname=\"trading_db\"})))",
+            "refId": "A",
+            "legendFormat": "Cache Hit %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 20,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 53
+        },
+        "type": "row",
+        "title": "Redis Infrastructure"
+      },
+      {
+        "id": 21,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 56
+        },
+        "type": "timeseries",
+        "title": "Redis Memory",
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "refId": "A",
+            "legendFormat": "Used"
+          },
+          {
+            "expr": "redis_memory_max_bytes",
+            "refId": "B",
+            "legendFormat": "Max"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "unit": "bytes"
+          }
+        }
+      },
+      {
+        "id": 22,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 56
+        },
+        "type": "timeseries",
+        "title": "Redis Ops/sec",
+        "targets": [
+          {
+            "expr": "rate(redis_commands_processed_total[5m])",
+            "refId": "A",
+            "legendFormat": "Commands"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "ops"
+          }
+        }
+      },
+      {
+        "id": 23,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 56
+        },
+        "type": "timeseries",
+        "title": "Redis Connected Clients",
+        "targets": [
+          {
+            "expr": "redis_connected_clients",
+            "refId": "A",
+            "legendFormat": "Clients"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 24,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 64
+        },
+        "type": "row",
+        "title": "Capacity Planning"
+      },
+      {
+        "id": 25,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 67
+        },
+        "type": "table",
+        "title": "Resource Utilization Summary",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "instance": "Instance",
+                "Value": "CPU %"
+              }
+            }
+          },
+          {
+            "id": "merge",
+            "options": {}
+          }
+        ]
+      },
+      {
+        "id": 26,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 67
+        },
+        "type": "timeseries",
+        "title": "Capacity Trend (7 days forecast)",
+        "targets": [
+          {
+            "expr": "predict_linear(node_memory_MemAvailable_bytes[1h], 7*24*3600)",
+            "refId": "A",
+            "legendFormat": "Memory Available (7d forecast)"
+          },
+          {
+            "expr": "predict_linear(node_filesystem_avail_bytes{mountpoint=\"/\"}[1h], 7*24*3600)",
+            "refId": "B",
+            "legendFormat": "Disk Available (7d forecast)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "unit": "bytes"
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "node",
+          "label": "Node",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(node_uname_info, instance)",
+          "multi": false,
+          "includeAll": false,
+          "refresh": 1
+        },
+        {
+          "name": "container",
+          "label": "Container",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(container_last_seen, name)",
+          "multi": true,
+          "includeAll": true,
+          "refresh": 1
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}

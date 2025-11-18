@@ -1,0 +1,255 @@
+# Docker Compose configuration for Enhanced NIFTY 50 Trading System
+# Production-ready multi-service deployment with monitoring
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database - Master
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-master
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-trading_system}
+      - POSTGRES_USER=${POSTGRES_USER:-trading_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trading_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================================================
+  # Redis - State Management and Caching
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis-master
+    restart: unless-stopped
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================================================
+  # Trading System Application
+  # ==========================================================================
+  trading-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-system
+    restart: unless-stopped
+    environment:
+      # Python settings
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Trading system settings
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-false}
+      - ZERODHA_API_KEY=${ZERODHA_API_KEY}
+      - ZERODHA_ACCESS_TOKEN=${ZERODHA_ACCESS_TOKEN}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
+      # Database settings
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-trading_system}
+      - POSTGRES_USER=${POSTGRES_USER:-trading_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+
+      # Redis settings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+
+      # Dashboard settings
+      - DASHBOARD_PORT=8080
+      - MONITORING_PORT=8081
+    volumes:
+      # Persistent data volumes
+      - trading-data:/app/data
+      - trading-logs:/app/logs
+      - trading-models:/app/models
+      - trading-state:/app/state
+      - trading-backups:/app/backups
+    ports:
+      - "8080:8080"  # Main dashboard
+      - "8081:8081"  # Monitoring dashboard
+      - "5000:5000"  # API server
+    networks:
+      - trading-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ==========================================================================
+  # Prometheus - Metrics Collection
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - trading-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================================================
+  # Grafana - Metrics Visualization
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - ./infrastructure/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - trading-network
+    depends_on:
+      - prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================================================
+  # NGINX - Reverse Proxy and Load Balancer
+  # ==========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    networks:
+      - trading-network
+    depends_on:
+      - trading-system
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  trading-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  # Database volumes
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+  # Trading system volumes
+  trading-data:
+    driver: local
+  trading-logs:
+    driver: local
+  trading-models:
+    driver: local
+  trading-state:
+    driver: local
+  trading-backups:
+    driver: local
+
+  # Monitoring volumes
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+  # Nginx volumes
+  nginx-logs:
+    driver: local

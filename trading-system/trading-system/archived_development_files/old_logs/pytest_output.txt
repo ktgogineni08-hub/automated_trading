@@ -1,0 +1,82 @@
+.....FF                                                                  [100%]
+=================================== FAILURES ===================================
+__________________ test_run_backtesting_invokes_fast_backtest __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1124f8160>
+
+    def test_run_backtesting_invokes_fast_backtest(monkeypatch):
+        calls = []
+    
+        class StubDataProvider:
+            def __init__(self, kite=None):
+                self.kite = kite
+    
+        class StubTradingSystem:
+            def __init__(self, data_provider, kite, initial_cash, trading_mode):
+                self.data_provider = data_provider
+                self.kite = kite
+                self.initial_cash = initial_cash
+                self.trading_mode = trading_mode
+                self.portfolio = SimpleNamespace(save_state_to_files=lambda: calls.append('save'))
+    
+            def run_fast_backtest(self, interval="5minute", days=30):
+                calls.append((interval, days, self.trading_mode))
+    
+        stub_module = ModuleType('data.provider')
+        stub_module.DataProvider = StubDataProvider
+        monkeypatch.setitem(sys.modules, 'data.provider', stub_module)
+        monkeypatch.setattr(main, 'UnifiedTradingSystem', StubTradingSystem)
+    
+>       main.run_backtesting(kite=None)
+
+tests/test_main_modes.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kite = None
+
+    def run_backtesting(kite):
+        """Run NIFTY 50 backtesting"""
+>       logger.info("Starting NIFTY 50 Backtesting...")
+E       AttributeError: 'TradingLogger' object has no attribute 'info'
+
+main.py:170: AttributeError
+______________ test_run_paper_trading_handles_keyboard_interrupt _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106245590>
+
+    def test_run_paper_trading_handles_keyboard_interrupt(monkeypatch):
+        calls = []
+    
+        class StubDataProvider:
+            def __init__(self, kite=None):
+                self.kite = kite
+    
+        class StubTradingSystem:
+            def __init__(self, data_provider, kite, initial_cash, trading_mode):
+                self.portfolio = SimpleNamespace(save_state_to_files=lambda: calls.append('saved'))
+    
+            def run_nifty50_trading(self, interval="5minute", check_interval=30):
+                raise KeyboardInterrupt
+    
+        stub_module = ModuleType('data.provider')
+        stub_module.DataProvider = StubDataProvider
+        monkeypatch.setitem(sys.modules, 'data.provider', stub_module)
+        monkeypatch.setattr(main, 'UnifiedTradingSystem', StubTradingSystem)
+    
+>       main.run_paper_trading(kite=None)
+
+tests/test_main_modes.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kite = None
+
+    def run_paper_trading(kite):
+        """Run NIFTY 50 paper trading"""
+>       logger.info("Starting NIFTY 50 Paper Trading...")
+E       AttributeError: 'TradingLogger' object has no attribute 'info'
+
+main.py:146: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_main_modes.py::test_run_backtesting_invokes_fast_backtest
+FAILED tests/test_main_modes.py::test_run_paper_trading_handles_keyboard_interrupt
+2 failed, 5 passed in 0.50s

@@ -1,0 +1,213 @@
+======================================================================
+COMPLETE TRADE LOG - 2025-10-24
+======================================================================
+Trading Mode: PAPER
+Report Generated: 2025-10-24 18:00:15 IST
+
+SUMMARY:
+  Total Trades Executed: 14
+  BUY Orders: 14
+  SELL Orders: 0
+  Open Positions: 14
+  Closed Positions: 0
+  Total Capital Deployed: ₹699,423.00
+
+TRADES BY SECTOR:
+  BANKEX: 1 trades, ₹89,266.58
+  FINNIFTY: 4 trades, ₹122,113.57
+  MIDCPNIFTY: 6 trades, ₹232,722.79
+  SENSEX: 3 trades, ₹255,320.06
+
+TRADES BY STRATEGY:
+  straddle: 10 trades, ₹692,112.15
+  strangle: 4 trades, ₹7,310.85
+
+======================================================================
+DETAILED TRADE LOG:
+======================================================================
+
+Trade #1:
+  Symbol: SENSEX25OCT84300PE
+  Action: BUY (Open Position)
+  Quantity: 360 contracts
+  Entry Price: ₹461.96
+  Total Cost: ₹166,305.18
+  Strategy: straddle
+  Sector: SENSEX
+  Confidence: 80%
+  Current Price: ₹461.96
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #2:
+  Symbol: MIDCPNIFTY25OCT13175PE
+  Action: BUY (Open Position)
+  Quantity: 700 contracts
+  Entry Price: ₹68.90
+  Total Cost: ₹48,229.79
+  Strategy: straddle
+  Sector: MIDCPNIFTY
+  Confidence: 80%
+  Current Price: ₹68.90
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #3:
+  Symbol: SENSEX25OCT84300CE
+  Action: BUY (Open Position)
+  Quantity: 180 contracts
+  Entry Price: ₹440.36
+  Total Cost: ₹79,264.48
+  Strategy: straddle
+  Sector: SENSEX
+  Confidence: 80%
+  Current Price: ₹440.36
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #4:
+  Symbol: MIDCPNIFTY25OCT13175CE
+  Action: BUY (Open Position)
+  Quantity: 280 contracts
+  Entry Price: ₹60.15
+  Total Cost: ₹16,840.64
+  Strategy: straddle
+  Sector: MIDCPNIFTY
+  Confidence: 80%
+  Current Price: ₹60.15
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #5:
+  Symbol: FINNIFTY25OCT27400CE
+  Action: BUY (Open Position)
+  Quantity: 585 contracts
+  Entry Price: ₹116.97
+  Total Cost: ₹68,430.05
+  Strategy: straddle
+  Sector: FINNIFTY
+  Confidence: 80%
+  Current Price: ₹116.97
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #6:
+  Symbol: SENSEX25OCT84200CE
+  Action: BUY (Open Position)
+  Quantity: 20 contracts
+  Entry Price: ₹487.52
+  Total Cost: ₹9,750.40
+  Strategy: straddle
+  Sector: SENSEX
+  Confidence: 80%
+  Current Price: ₹487.52
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #7:
+  Symbol: MIDCPNIFTY25OCT13150CE
+  Action: BUY (Open Position)
+  Quantity: 1400 contracts
+  Entry Price: ₹74.84
+  Total Cost: ₹104,777.62
+  Strategy: straddle
+  Sector: MIDCPNIFTY
+  Confidence: 80%
+  Current Price: ₹74.84
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #8:
+  Symbol: BANKEX25OCT65100CE
+  Action: BUY (Open Position)
+  Quantity: 240 contracts
+  Entry Price: ₹371.94
+  Total Cost: ₹89,266.58
+  Strategy: straddle
+  Sector: BANKEX
+  Confidence: 80%
+  Current Price: ₹371.94
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #9:
+  Symbol: FINNIFTY25OCT27400PE
+  Action: BUY (Open Position)
+  Quantity: 390 contracts
+  Entry Price: ₹124.47
+  Total Cost: ₹48,542.67
+  Strategy: straddle
+  Sector: FINNIFTY
+  Confidence: 80%
+  Current Price: ₹124.47
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #10:
+  Symbol: MIDCPNIFTY25OCT13150PE
+  Action: BUY (Open Position)
+  Quantity: 1120 contracts
+  Entry Price: ₹54.20
+  Total Cost: ₹60,704.75
+  Strategy: straddle
+  Sector: MIDCPNIFTY
+  Confidence: 80%
+  Current Price: ₹54.20
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #11:
+  Symbol: MIDCPNIFTY25OCT13575CE
+  Action: BUY (Open Position)
+  Quantity: 280 contracts
+  Entry Price: ₹3.85
+  Total Cost: ₹1,078.00
+  Strategy: strangle
+  Sector: MIDCPNIFTY
+  Confidence: 75%
+  Current Price: ₹3.85
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #12:
+  Symbol: MIDCPNIFTY25OCT12750PE
+  Action: BUY (Open Position)
+  Quantity: 280 contracts
+  Entry Price: ₹3.90
+  Total Cost: ₹1,092.00
+  Strategy: strangle
+  Sector: MIDCPNIFTY
+  Confidence: 75%
+  Current Price: ₹3.90
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #13:
+  Symbol: FINNIFTY25OCT28250CE
+  Action: BUY (Open Position)
+  Quantity: 65 contracts
+  Entry Price: ₹72.32
+  Total Cost: ₹4,700.80
+  Strategy: strangle
+  Sector: FINNIFTY
+  Confidence: 75%
+  Current Price: ₹72.32
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+Trade #14:
+  Symbol: FINNIFTY25OCT26550PE
+  Action: BUY (Open Position)
+  Quantity: 65 contracts
+  Entry Price: ₹6.77
+  Total Cost: ₹440.05
+  Strategy: strangle
+  Sector: FINNIFTY
+  Confidence: 75%
+  Current Price: ₹6.77
+  Unrealized P&L: ₹0.00
+  Status: OPEN
+
+======================================================================
+END OF TRADE LOG
+======================================================================

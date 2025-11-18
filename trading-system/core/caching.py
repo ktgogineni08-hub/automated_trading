@@ -4,15 +4,97 @@ Redis Caching Layer for Trading System
 Provides high-performance caching for frequently accessed data
 """
 
-import redis
-import json
+import base64
+import dataclasses
+import io
 import pickle
-from typing import Any, Optional, Union, Dict, List
-from datetime import timedelta
-from functools import wraps
-import time
 import hashlib
+import json
+import logging
+import time
 from contextlib import contextmanager
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from functools import wraps
+from typing import Any, Dict, List, Optional, Union
+
+import redis
+
+logger = logging.getLogger(__name__)
+
+try:
+    import numpy as np  # type: ignore
+except Exception:  # pragma: no cover - numpy optional
+    np = None
+
+
+_TYPE_KEY = "__type__"
+
+
+def _default_serializer(value: Any) -> Dict[str, Any]:
+    """JSON serializer that avoids unsafe pickle usage."""
+    if isinstance(value, (datetime, date)):
+        return {_TYPE_KEY: "datetime", "value": value.isoformat()}
+    if isinstance(value, Decimal):
+        return {_TYPE_KEY: "decimal", "value": str(value)}
+    if dataclasses.is_dataclass(value):
+        return dataclasses.asdict(value)
+    if isinstance(value, set):
+        return {_TYPE_KEY: "set", "value": list(value)}
+    if isinstance(value, tuple):
+        return {_TYPE_KEY: "tuple", "value": list(value)}
+    if isinstance(value, bytes):
+        return {_TYPE_KEY: "bytes", "value": base64.b64encode(value).decode("ascii")}
+    if np is not None and isinstance(value, np.ndarray):
+        return {
+            _TYPE_KEY: "ndarray",
+            "value": base64.b64encode(value.tobytes()).decode("ascii"),
+            "dtype": str(value.dtype),
+            "shape": value.shape,
+        }
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    raise TypeError(f"Unsupported cache value type: {type(value)!r}")
+
+
+def _object_hook(obj: Dict[str, Any]) -> Any:
+    """Rehydrate values encoded by _default_serializer."""
+    type_tag = obj.get(_TYPE_KEY)
+    if type_tag is None:
+        return obj
+
+    if type_tag == "datetime":
+        return datetime.fromisoformat(obj["value"])
+    if type_tag == "decimal":
+        return Decimal(obj["value"])
+    if type_tag == "set":
+        return set(obj["value"])
+    if type_tag == "tuple":
+        return tuple(obj["value"])
+    if type_tag == "bytes":
+        return base64.b64decode(obj["value"])
+    if type_tag == "ndarray" and np is not None:
+        raw = base64.b64decode(obj["value"])
+        array = np.frombuffer(raw, dtype=np.dtype(obj["dtype"]))  # type: ignore[attr-defined]
+        return array.reshape(obj["shape"])
+    return obj
+
+def _safe_pickle_loads(data: bytes) -> Any:
+    """Safely deserialize limited pickle payloads for backward compatibility."""
+    allowed_builtins = {
+        'dict', 'list', 'set', 'tuple', 'str', 'int', 'float', 'bool', 'NoneType'
+    }
+
+    class SafeUnpickler(pickle.Unpickler):
+        def find_class(self, module, name):
+            if module == 'builtins' and name in allowed_builtins:
+                return super().find_class(module, name)
+            raise pickle.UnpicklingError("Disallowed pickle type: {}.{}".format(module, name))
+
+    try:
+        return SafeUnpickler(io.BytesIO(data)).load()
+    except Exception as exc:  # pragma: no cover - defensive
+        raise pickle.UnpicklingError(str(exc)) from exc
 
 class RedisCache:
     """
@@ -66,29 +148,30 @@ class RedisCache:
         # Test connection
         try:
             self.client.ping()
-            print("✅ Redis connection established")
+            logger.info("Redis connection established successfully")
         except Exception as e:
-            print(f"❌ Redis connection failed: {e}")
+            logger.error("Redis connection failed: %s", e)
             raise
     
+
+
     def _serialize(self, value: Any) -> bytes:
-        """Serialize value for Redis storage"""
+        """Serialize value for Redis storage using JSON metadata."""
         try:
-            # Try JSON first (faster, human-readable)
-            return json.dumps(value).encode('utf-8')
-        except (TypeError, ValueError):
-            # Fall back to pickle for complex objects
-            return pickle.dumps(value)
-    
+            return json.dumps(value, default=_default_serializer, ensure_ascii=False).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise TypeError(f"Cache value is not serializable: {exc}") from exc
+
     def _deserialize(self, data: bytes) -> Any:
-        """Deserialize value from Redis"""
+        """Deserialize value from Redis."""
         try:
-            # Try JSON first
-            return json.loads(data.decode('utf-8'))
+            return json.loads(data.decode("utf-8"), object_hook=_object_hook)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            # Fall back to pickle
-            return pickle.loads(data)
-    
+            try:
+                return _safe_pickle_loads(data)
+            except pickle.UnpicklingError as exc:
+                raise ValueError("Cached data corrupted or in an unexpected format") from exc
+
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get value from cache
@@ -112,7 +195,7 @@ class RedisCache:
             
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache get error for key '{key}': {e}")
+            logger.error("Cache get error for key '%s': %s", key, e)
             return default
     
     def set(
@@ -146,7 +229,7 @@ class RedisCache:
             
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache set error for key '{key}': {e}")
+            logger.error("Cache set error for key '%s': %s", key, e)
             return False
     
     def delete(self, key: str) -> bool:
@@ -165,7 +248,7 @@ class RedisCache:
             return result > 0
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache delete error for key '{key}': {e}")
+            logger.error("Cache delete error for key '%s': %s", key, e)
             return False
     
     def delete_pattern(self, pattern: str) -> int:
@@ -185,7 +268,7 @@ class RedisCache:
             return 0
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache delete pattern error for '{pattern}': {e}")
+            logger.error("Cache delete pattern error for '%s': %s", pattern, e)
             return 0
     
     def exists(self, key: str) -> bool:
@@ -271,9 +354,9 @@ class RedisCache:
         """Clear entire cache - USE WITH CAUTION!"""
         try:
             self.client.flushdb()
-            print("⚠️  Cache flushed")
+            logger.warning("Cache flushed - all data cleared")
         except Exception as e:
-            print(f"Cache flush error: {e}")
+            logger.error("Cache flush error: %s", e)
 
 
 # Decorator for caching function results
@@ -373,7 +456,7 @@ class MarketDataCache:
         """Invalidate all cached data for symbol"""
         pattern = f"{self.prefix}:*:{symbol}*"
         deleted = self.cache.delete_pattern(pattern)
-        print(f"Invalidated {deleted} cache entries for {symbol}")
+        logger.info("Invalidated %d cache entries for %s", deleted, symbol)
 
 
 class PortfolioCache:

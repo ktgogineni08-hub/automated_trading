@@ -17,6 +17,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from enhanced_dashboard_server import SecureDashboardHandler
 from zerodha_token_manager import ZerodhaTokenManager
 
+pytestmark = pytest.mark.filterwarnings("ignore:Unverified HTTPS request")
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -83,7 +85,9 @@ def test_dashboard_https_healthcheck(tmp_path):
         response = requests.get(
             f"https://127.0.0.1:{port}/health",
             headers={"X-API-Key": "test-key"},
-            verify=False,
+            # NOTE: verify=False is intentional for testing with self-signed certificates
+            # This is ONLY acceptable in test environments. Production MUST use proper SSL verification.
+            verify=False,  # nosec B501 - acceptable for test environment only
             timeout=5,
         )
         assert response.status_code == 200
