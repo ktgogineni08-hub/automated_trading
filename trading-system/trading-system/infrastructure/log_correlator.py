@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from enum import Enum
 import sqlite3
@@ -217,7 +217,7 @@ class LogCorrelator:
                 INSERT INTO logs (timestamp, level, component, message, context, correlation_id, thread_id, process_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                entry.timestamp,
+                entry.timestamp.isoformat(),
                 entry.level.value,
                 entry.component,
                 entry.message,
@@ -306,11 +306,11 @@ class LogCorrelator:
 
         if start_time:
             query += " AND timestamp >= ?"
-            params.append(start_time)
+            params.append(start_time.isoformat() if isinstance(start_time, datetime) else start_time)
 
         if end_time:
             query += " AND timestamp <= ?"
-            params.append(end_time)
+            params.append(end_time.isoformat() if isinstance(end_time, datetime) else end_time)
 
         if level:
             query += " AND level = ?"

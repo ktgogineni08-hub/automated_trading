@@ -1,0 +1,422 @@
+{
+  "dashboard": {
+    "title": "Trading System - Trading Activity",
+    "tags": ["trading", "production", "business"],
+    "timezone": "Asia/Kolkata",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Open Positions",
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "trading_open_positions",
+            "legendFormat": "Positions"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 15, "color": "yellow"},
+                {"value": 20, "color": "red"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Daily P&L",
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+        "targets": [
+          {
+            "expr": "trading_pnl_total",
+            "legendFormat": "P&L"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": -10000, "color": "red"},
+                {"value": 0, "color": "yellow"},
+                {"value": 10000, "color": "green"}
+              ]
+            },
+            "unit": "currencyINR",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Orders Today",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+        "targets": [
+          {
+            "expr": "increase(trading_orders_total[24h])",
+            "legendFormat": "Orders"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 20, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Win Rate",
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "100 * trading_profitable_trades_total / trading_completed_trades_total",
+            "legendFormat": "Win Rate"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 50, "color": "yellow"},
+                {"value": 60, "color": "green"}
+              ]
+            },
+            "unit": "percent",
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "id": 5,
+        "type": "stat",
+        "title": "Active Strategies",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+        "targets": [
+          {
+            "expr": "count(trading_strategy_active == 1)",
+            "legendFormat": "Active"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "green"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": "stat",
+        "title": "Portfolio Value",
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+        "targets": [
+          {
+            "expr": "trading_portfolio_value_total",
+            "legendFormat": "Value"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyINR",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 7,
+        "type": "timeseries",
+        "title": "P&L Over Time",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "trading_pnl_total",
+            "legendFormat": "Total P&L"
+          },
+          {
+            "expr": "trading_realized_pnl",
+            "legendFormat": "Realized P&L"
+          },
+          {
+            "expr": "trading_unrealized_pnl",
+            "legendFormat": "Unrealized P&L"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "unit": "currencyINR"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "type": "timeseries",
+        "title": "Order Activity",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "rate(trading_orders_total{status=\"COMPLETE\"}[5m]) * 60",
+            "legendFormat": "Completed Orders/min"
+          },
+          {
+            "expr": "rate(trading_orders_total{status=\"REJECTED\"}[5m]) * 60",
+            "legendFormat": "Rejected Orders/min"
+          },
+          {
+            "expr": "rate(trading_orders_total{status=\"CANCELLED\"}[5m]) * 60",
+            "legendFormat": "Cancelled Orders/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "barAlignment": 0
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "type": "piechart",
+        "title": "Positions by Sector",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "sum by (sector) (trading_position_quantity{status=\"open\"})",
+            "legendFormat": "{{sector}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 10,
+        "type": "table",
+        "title": "Top Positions",
+        "gridPos": {"h": 8, "w": 9, "x": 6, "y": 12},
+        "targets": [
+          {
+            "expr": "topk(10, trading_position_value)",
+            "legendFormat": "{{symbol}}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "indexByName": {
+                "symbol": 0,
+                "Value": 1
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Value"},
+              "properties": [
+                {"id": "unit", "value": "currencyINR"},
+                {"id": "custom.displayMode", "value": "gradient-gauge"},
+                {"id": "custom.cellOptions", "value": {"type": "color-background"}}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 11,
+        "type": "bargauge",
+        "title": "Strategy Performance",
+        "gridPos": {"h": 8, "w": 9, "x": 15, "y": 12},
+        "targets": [
+          {
+            "expr": "sum by (strategy) (trading_strategy_pnl)",
+            "legendFormat": "{{strategy}}"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": -5000, "color": "red"},
+                {"value": 0, "color": "yellow"},
+                {"value": 5000, "color": "green"}
+              ]
+            },
+            "unit": "currencyINR"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "type": "timeseries",
+        "title": "Signal Generation Rate",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "rate(trading_signals_generated_total[5m]) * 60",
+            "legendFormat": "Signals/min"
+          },
+          {
+            "expr": "rate(trading_signals_executed_total[5m]) * 60",
+            "legendFormat": "Executed/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "type": "timeseries",
+        "title": "Risk Metrics",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "expr": "trading_portfolio_var_daily",
+            "legendFormat": "Daily VaR"
+          },
+          {
+            "expr": "trading_max_drawdown",
+            "legendFormat": "Max Drawdown"
+          },
+          {
+            "expr": "trading_sharpe_ratio",
+            "legendFormat": "Sharpe Ratio (scaled 1000x)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Daily VaR"},
+              "properties": [{"id": "unit", "value": "currencyINR"}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Max Drawdown"},
+              "properties": [{"id": "unit", "value": "percent"}]
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Market Open",
+          "datasource": "-- Grafana --",
+          "iconColor": "green",
+          "enable": true,
+          "tags": ["market"],
+          "expr": "time() == hour(9) * 3600 + minute(15) * 60"
+        },
+        {
+          "name": "Market Close",
+          "datasource": "-- Grafana --",
+          "iconColor": "red",
+          "enable": true,
+          "tags": ["market"],
+          "expr": "time() == hour(15) * 3600 + minute(30) * 60"
+        },
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "iconColor": "blue",
+          "enable": true,
+          "tags": ["deployment"],
+          "expr": "changes(kube_deployment_spec_replicas{deployment=\"trading-system\"}[1m]) > 0"
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}

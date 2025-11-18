@@ -310,7 +310,11 @@ class DQNAgent:
     
     def load(self, path: str):
         """Load agent from disk"""
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except TypeError:
+            # Fallback for older PyTorch versions
+            checkpoint = torch.load(path, map_location=self.device)
         self.q_network.load_state_dict(checkpoint['q_network'])
         self.target_network.load_state_dict(checkpoint['target_network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -555,7 +559,11 @@ class PPOAgent:
     
     def load(self, path: str):
         """Load agent from disk"""
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except TypeError:
+            # Fallback for older PyTorch versions
+            checkpoint = torch.load(path, map_location=self.device)
         self.network.load_state_dict(checkpoint['network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.episode = checkpoint['episode']

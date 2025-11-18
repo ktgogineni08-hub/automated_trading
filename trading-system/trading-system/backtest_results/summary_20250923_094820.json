@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-09-23T09:48:20.115170",
+  "mode": "fast_backtest",
+  "interval": "5minute",
+  "days": 30,
+  "symbols": 30,
+  "bars": 1507,
+  "trades": 91,
+  "win_rate": 48.35164835164835,
+  "final_value": 994084.2993877688,
+  "total_pnl": -3305.6687578408832,
+  "best_trade": 2872.228262049989,
+  "worst_trade": -1687.09416508,
+  "settings": {
+    "min_confidence": 0.5,
+    "top_n": 3,
+    "max_positions": 18
+  }
+}

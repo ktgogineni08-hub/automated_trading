@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-10-25 21:17:38",
+  "system_resources": {
+    "cpu_percent": 15.8,
+    "cpu_count": 8,
+    "memory_total_gb": 16.0,
+    "memory_available_gb": 3.7405242919921875,
+    "memory_percent": 76.6,
+    "disk_total_gb": 460.4317207336426,
+    "disk_used_gb": 107.40710830688477,
+    "disk_percent": 23.3
+  },
+  "import_times": {
+    "config": 4.176855087280273,
+    "core.trading_system": "Error: invalid syntax (trading_system.py, line 23)",
+    "core.portfolio": "Error: invalid syntax (trading_system.py, line 23)",
+    "strategies.moving_average": 1.3921260833740234,
+    "fno.terminal": 0.0019073486328125,
+    "utilities.structured_logger": 0.0019073486328125,
+    "infrastructure.performance_monitor": 10.293960571289062
+  },
+  "baseline_established": true
+}

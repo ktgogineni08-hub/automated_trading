@@ -1,0 +1,188 @@
+{
+  "timestamp": "2025-11-02T16:17:26.777801",
+  "trading_mode": "paper",
+  "iteration": 26,
+  "portfolio": {
+    "initial_cash": 1000000.0,
+    "cash": 896235.1414317,
+    "positions": {
+      "TEST_NIFTY_CE": {
+        "shares": 75,
+        "entry_price": 220.66,
+        "stop_loss": 207.42039999999997,
+        "take_profit": 247.13920000000002,
+        "entry_time": "2025-11-02T16:17:26.738251",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "straddle",
+        "invested_amount": 16561.92701955
+      },
+      "TEST_NIFTY_PE": {
+        "shares": 75,
+        "entry_price": 185.56,
+        "stop_loss": 174.4264,
+        "take_profit": 207.82720000000003,
+        "entry_time": "2025-11-02T16:17:26.748059",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "straddle",
+        "invested_amount": 13927.4502753
+      },
+      "TEST_BANKNIFTY_CE": {
+        "shares": 50,
+        "entry_price": 396.19,
+        "stop_loss": 372.41859999999997,
+        "take_profit": 443.73280000000005,
+        "entry_time": "2025-11-02T16:17:26.755192",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "iron_condor",
+        "invested_amount": 19824.37495355
+      },
+      "TEST_FINNIFTY_CE": {
+        "shares": 100,
+        "entry_price": 165.5,
+        "stop_loss": 155.57,
+        "take_profit": 185.36,
+        "entry_time": "2025-11-02T16:17:26.760924",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "strangle",
+        "invested_amount": 16562.427395
+      },
+      "TEST_MIDCPNIFTY_PE": {
+        "shares": 150,
+        "entry_price": 125.38,
+        "stop_loss": 117.85719999999999,
+        "take_profit": 140.4256,
+        "entry_time": "2025-11-02T16:17:26.766246",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "butterfly",
+        "invested_amount": 18821.1221763
+      },
+      "TEST_CONTINUATION_CE": {
+        "shares": 75,
+        "entry_price": 240.72,
+        "stop_loss": 226.27679999999998,
+        "take_profit": 269.6064,
+        "entry_time": "2025-11-02T16:17:26.772945",
+        "confidence": 0.75,
+        "sector": "F&O",
+        "atr": null,
+        "strategy": "continuation_test",
+        "invested_amount": 18067.5567486
+      }
+    },
+    "trades_count": 6,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0.0,
+    "best_trade": 0.0,
+    "worst_trade": 0.0,
+    "trades_history": [
+      {
+        "timestamp": "2025-11-02T16:17:26.738251",
+        "symbol": "TEST_NIFTY_CE",
+        "side": "buy",
+        "shares": 75,
+        "price": 220.66,
+        "fees": 12.427019549999997,
+        "mode": "paper",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "cash_balance": 983438.07298045
+      },
+      {
+        "timestamp": "2025-11-02T16:17:26.748059",
+        "symbol": "TEST_NIFTY_PE",
+        "side": "buy",
+        "shares": 75,
+        "price": 185.56,
+        "fees": 10.4502753,
+        "mode": "paper",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "cash_balance": 969510.62270515
+      },
+      {
+        "timestamp": "2025-11-02T16:17:26.755192",
+        "symbol": "TEST_BANKNIFTY_CE",
+        "side": "buy",
+        "shares": 50,
+        "price": 396.19,
+        "fees": 14.874953549999999,
+        "mode": "paper",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "cash_balance": 949686.2477516
+      },
+      {
+        "timestamp": "2025-11-02T16:17:26.760924",
+        "symbol": "TEST_FINNIFTY_CE",
+        "side": "buy",
+        "shares": 100,
+        "price": 165.5,
+        "fees": 12.427394999999999,
+        "mode": "paper",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "cash_balance": 933123.8203566
+      },
+      {
+        "timestamp": "2025-11-02T16:17:26.766246",
+        "symbol": "TEST_MIDCPNIFTY_PE",
+        "side": "buy",
+        "shares": 150,
+        "price": 125.38,
+        "fees": 14.1221763,
+        "mode": "paper",
+        "confidence": 0.8,
+        "sector": "F&O",
+        "cash_balance": 914302.6981803
+      },
+      {
+        "timestamp": "2025-11-02T16:17:26.772945",
+        "symbol": "TEST_CONTINUATION_CE",
+        "side": "buy",
+        "shares": 75,
+        "price": 240.72,
+        "fees": 13.556748599999999,
+        "mode": "paper",
+        "confidence": 0.75,
+        "sector": "F&O",
+        "cash_balance": 896235.1414317
+      }
+    ],
+    "position_entry_times": {
+      "TEST_NIFTY_CE": "2025-11-02T16:17:26.738251",
+      "TEST_NIFTY_PE": "2025-11-02T16:17:26.748059",
+      "TEST_BANKNIFTY_CE": "2025-11-02T16:17:26.755192",
+      "TEST_FINNIFTY_CE": "2025-11-02T16:17:26.760924",
+      "TEST_MIDCPNIFTY_PE": "2025-11-02T16:17:26.766246",
+      "TEST_CONTINUATION_CE": "2025-11-02T16:17:26.772945"
+    }
+  },
+  "configuration": {
+    "min_confidence": 0.65,
+    "check_interval": 300,
+    "max_positions": 5,
+    "capital_per_trade": 200000
+  },
+  "available_indices": [
+    "NIFTY",
+    "BANKNIFTY",
+    "FINNIFTY",
+    "MIDCPNIFTY"
+  ],
+  "last_market_analysis": {
+    "last_scan_time": "2025-11-02T16:17:26.777815",
+    "signals_found": 1,
+    "successful_executions": 1
+  }
+}

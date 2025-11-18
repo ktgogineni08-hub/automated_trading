@@ -1,66 +1,26 @@
-# Byte-compiled / optimized / DLL files
+myenv/
 __pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
+*.pyc
+*.pyo
+*.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Environment folders
-.env
-venv/
 env/
-
-# State and log files
-state/
-logs/
-saved_trades/
-zerodha_tokens.json
-access_token.json
-zerodha_access.token
-*.log
-*.jsonl
-logs_database.db
-
-# CRITICAL: API credentials and sensitive data
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
 .env
-.env.*
-!.env.example
-**/zerodha_token.json
-credentials.json
-api_keys.json
-api_secret*
-*_secret.json
-
-# Trading data with potentially sensitive info
-trades.csv
-trade_archives/
-trade_archives_backup/
-performance_*.csv
-backtest_results/
+.env.local
+.DS_Store
+*.log
+*.csv
 *.pkl
-
-# System diagnostics that may contain sensitive info
-system_diagnostics.json
-
-# IDE settings
-.vscode/
-.idea/
+*.token
+access_token.json
+access_token.txt
+zerodha_access.token
+zerodha_tokens.json
+instruments.pkl
+logs_database.db
+trading-system/bandit_report_comprehensive.json

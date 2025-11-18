@@ -10,6 +10,7 @@ import io
 import pickle
 import hashlib
 import json
+import logging
 import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -19,6 +20,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import redis
 
+logger = logging.getLogger(__name__)
 try:
     import numpy as np  # type: ignore
 except Exception:  # pragma: no cover - numpy optional
@@ -145,9 +147,9 @@ class RedisCache:
         # Test connection
         try:
             self.client.ping()
-            print("✅ Redis connection established")
+            logger.info("Redis connection established successfully")
         except Exception as e:
-            print(f"❌ Redis connection failed: {e}")
+            logger.error("Redis connection failed: %s", e)
             raise
     
 
@@ -192,7 +194,7 @@ class RedisCache:
             
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache get error for key '{key}': {e}")
+            logger.error("Cache get error for key '%s': %s", key, e)
             return default
     
     def set(
@@ -226,7 +228,7 @@ class RedisCache:
             
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache set error for key '{key}': {e}")
+            logger.error("Cache set error for key '%s': %s", key, e)
             return False
     
     def delete(self, key: str) -> bool:
@@ -245,7 +247,7 @@ class RedisCache:
             return result > 0
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache delete error for key '{key}': {e}")
+            logger.error("Cache delete error for key '%s': %s", key, e)
             return False
     
     def delete_pattern(self, pattern: str) -> int:
@@ -265,7 +267,7 @@ class RedisCache:
             return 0
         except Exception as e:
             self.stats["errors"] += 1
-            print(f"Cache delete pattern error for '{pattern}': {e}")
+            logger.error("Cache delete pattern error for '%s': %s", pattern, e)
             return 0
     
     def exists(self, key: str) -> bool:
@@ -351,9 +353,9 @@ class RedisCache:
         """Clear entire cache - USE WITH CAUTION!"""
         try:
             self.client.flushdb()
-            print("⚠️  Cache flushed")
+            logger.warning("Cache flushed - all data cleared")
         except Exception as e:
-            print(f"Cache flush error: {e}")
+            logger.error("Cache flush error: %s", e)
 
 
 # Decorator for caching function results
@@ -453,7 +455,7 @@ class MarketDataCache:
         """Invalidate all cached data for symbol"""
         pattern = f"{self.prefix}:*:{symbol}*"
         deleted = self.cache.delete_pattern(pattern)
-        print(f"Invalidated {deleted} cache entries for {symbol}")
+        logger.info("Invalidated %d cache entries for %s", deleted, symbol)
 
 
 class PortfolioCache:

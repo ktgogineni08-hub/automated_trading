@@ -1,50 +1,87 @@
 #!/usr/bin/env python3
-"""
-Check what indices are ACTUALLY available in NFO and BFO instruments from Kite
-This will tell us the real availability vs our assumptions
-"""
+"""Inspect which indices are actually available in Kite F&O segments."""
 
-import sys
-import os
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+from typing import Optional
 
-# Add the current directory to Python path
-sys.path.append('/Users/gogineni/Python/trading-system')
+from kiteconnect import KiteConnect
 
-# Import required classes
-from enhanced_trading_system_complete import UnifiedTradingSystem
+from config import get_config
+from zerodha_token_manager import ZerodhaTokenManager
+
+
+def get_authenticated_kite(auto_prompt_for_token: bool = True) -> Optional[KiteConnect]:
+    """Return an authenticated Kite client or None if authentication fails."""
+    cfg = get_config()
+    api_key, api_secret = cfg.get_api_credentials()
+
+    if not api_key or not api_secret:
+        print("❌ Zerodha API credentials are not configured. Update trading_config.json or set environment variables.")
+        return None
+
+    token_file = cfg.get("api.zerodha.token_file")
+    manager = ZerodhaTokenManager(api_key, api_secret, token_file=token_file)
+
+    cached_token = None
+    if manager.fernet:
+        cached_token = manager.load_tokens()
+        if cached_token:
+            try:
+                manager.kite.set_access_token(cached_token)
+                manager.kite.profile()  # Quick validation that the token still works
+                print("✅ Using cached Zerodha access token")
+                return manager.kite
+            except Exception as exc:
+                print(f"⚠️ Cached token is invalid: {exc}. Trying to obtain a fresh token...")
+    elif manager.token_file.exists():
+        print("⚠️ ZERODHA_TOKEN_KEY not set; cached token cannot be decrypted.")
+
+    if not auto_prompt_for_token:
+        print("ℹ️ Run `python zerodha_token_manager.py` to generate a fresh token, then re-run this script.")
+        return None
+
+    try:
+        fresh_token = manager.get_valid_token(auto_use_existing=True)
+        if fresh_token:
+            print("✅ Obtained new Zerodha access token")
+            return manager.kite
+    except Exception as exc:
+        print(f"❌ Authentication failed: {exc}")
+
+    return None
+
 
 def check_actual_instrument_availability():
-    """Check what's actually available in NFO and BFO"""
+    """Check what's actually available in NFO and BFO."""
     print("🔍 Checking ACTUAL instrument availability in NFO and BFO...")
     print("=" * 80)
 
+    kite = get_authenticated_kite(auto_prompt_for_token=True)
+    if not kite:
+        print("❌ Unable to continue without a valid Zerodha connection.")
+        return False
+
     try:
-        # Create trading system instance
-        system = UnifiedTradingSystem()
-
-        # Test if we can connect to Kite
-        if not system.data_provider.kite:
-            print("❌ No Kite connection available")
-            return False
-
         print("✅ Kite connection established")
+
+        # Prepare containers for summaries
+        nfo_instruments = []
+        bfo_instruments = []
+        nfo_indices = defaultdict(lambda: {'FUT': 0, 'CE': 0, 'PE': 0})
+        bfo_indices = defaultdict(lambda: {'FUT': 0, 'CE': 0, 'PE': 0})
+        nfo_sample_instruments = defaultdict(list)
+        bfo_sample_instruments = defaultdict(list)
 
         # Check NFO instruments
         print("\n📊 Checking NSE F&O (NFO) instruments...")
         try:
-            nfo_instruments = system.data_provider.kite.instruments("NFO")
+            nfo_instruments = kite.instruments("NFO")
             print(f"✅ Retrieved {len(nfo_instruments)} NFO instruments")
 
-            # Analyze NFO instruments
-            nfo_indices = defaultdict(lambda: {'FUT': 0, 'CE': 0, 'PE': 0})
-            nfo_sample_instruments = defaultdict(list)
-
             for inst in nfo_instruments:
-                index_name = inst.get('name', '')
+                index_name = inst.get('name') or 'UNKNOWN'
                 instrument_type = inst.get('instrument_type', '')
-                exchange = inst.get('exchange', 'NSE')
 
                 if instrument_type in ['FUT', 'CE', 'PE']:
                     nfo_indices[index_name][instrument_type] += 1
@@ -63,29 +100,23 @@ def check_actual_instrument_availability():
                 total = counts['FUT'] + counts['CE'] + counts['PE']
                 if total > 10:  # Only show indices with significant F&O activity
                     print(f"   {index_name:20} | FUT: {counts['FUT']:3d} | CE: {counts['CE']:4d} | PE: {counts['PE']:4d} | Total: {total:4d}")
-
-                    # Show sample instruments
                     if nfo_sample_instruments[index_name]:
-                        print(f"      Sample: {nfo_sample_instruments[index_name][0]['symbol']} (Lot: {nfo_sample_instruments[index_name][0]['lot_size']})")
+                        sample = nfo_sample_instruments[index_name][0]
+                        print(f"      Sample: {sample['symbol']} (Lot: {sample['lot_size']})")
 
-        except Exception as e:
-            print(f"❌ Error fetching NFO instruments: {e}")
+        except Exception as exc:
+            print(f"❌ Error fetching NFO instruments: {exc}")
             nfo_instruments = []
 
         # Check BFO instruments
         print(f"\n📊 Checking BSE F&O (BFO) instruments...")
         try:
-            bfo_instruments = system.data_provider.kite.instruments("BFO")
+            bfo_instruments = kite.instruments("BFO")
             print(f"✅ Retrieved {len(bfo_instruments)} BFO instruments")
 
-            # Analyze BFO instruments
-            bfo_indices = defaultdict(lambda: {'FUT': 0, 'CE': 0, 'PE': 0})
-            bfo_sample_instruments = defaultdict(list)
-
             for inst in bfo_instruments:
-                index_name = inst.get('name', '')
+                index_name = inst.get('name') or 'UNKNOWN'
                 instrument_type = inst.get('instrument_type', '')
-                exchange = inst.get('exchange', 'BSE')
 
                 if instrument_type in ['FUT', 'CE', 'PE']:
                     bfo_indices[index_name][instrument_type] += 1
@@ -104,53 +135,47 @@ def check_actual_instrument_availability():
                 total = counts['FUT'] + counts['CE'] + counts['PE']
                 if total > 5:  # Show all BFO indices with any F&O activity
                     print(f"   {index_name:20} | FUT: {counts['FUT']:3d} | CE: {counts['CE']:4d} | PE: {counts['PE']:4d} | Total: {total:4d}")
-
-                    # Show sample instruments
                     if bfo_sample_instruments[index_name]:
-                        print(f"      Sample: {bfo_sample_instruments[index_name][0]['symbol']} (Lot: {bfo_sample_instruments[index_name][0]['lot_size']})")
+                        sample = bfo_sample_instruments[index_name][0]
+                        print(f"      Sample: {sample['symbol']} (Lot: {sample['lot_size']})")
 
-        except Exception as e:
-            print(f"❌ Error fetching BFO instruments: {e}")
+        except Exception as exc:
+            print(f"❌ Error fetching BFO instruments: {exc}")
             print(f"   This might mean BFO is not available or not supported")
             bfo_instruments = []
-            bfo_indices = {}
 
         # Check for commodities and currencies
         print(f"\n🏭 Checking for Commodity instruments...")
         try:
-            # Commodities might be in MCX segment
-            mcx_instruments = []
-            try:
-                mcx_instruments = system.data_provider.kite.instruments("MCX")
-                print(f"✅ Retrieved {len(mcx_instruments)} MCX instruments")
+            mcx_instruments = kite.instruments("MCX")
+            print(f"✅ Retrieved {len(mcx_instruments)} MCX instruments")
 
-                # Sample MCX instruments
-                mcx_sample = mcx_instruments[:10] if mcx_instruments else []
-                for inst in mcx_sample:
-                    print(f"   MCX Sample: {inst['tradingsymbol']} | Type: {inst.get('instrument_type', 'N/A')} | Lot: {inst.get('lot_size', 0)}")
+            mcx_sample = mcx_instruments[:10] if mcx_instruments else []
+            for inst in mcx_sample:
+                print(f"   MCX Sample: {inst['tradingsymbol']} | Type: {inst.get('instrument_type', 'N/A')} | Lot: {inst.get('lot_size', 0)}")
 
-            except Exception as e:
-                print(f"❌ MCX instruments not available: {e}")
-
-        except Exception as e:
-            print(f"❌ Error checking commodity instruments: {e}")
+        except Exception as exc:
+            print(f"❌ MCX instruments not available: {exc}")
 
         # Summary
         print(f"\n📋 SUMMARY:")
         print("=" * 80)
-        print(f"✅ NFO (NSE F&O): {len(nfo_instruments)} total instruments")
-        print(f"   • Indices with F&O: {len([k for k, v in nfo_indices.items() if sum(v.values()) > 10])}")
-        print(f"✅ BFO (BSE F&O): {len(bfo_instruments)} total instruments")
-        print(f"   • Indices with F&O: {len([k for k, v in bfo_indices.items() if sum(v.values()) > 5])}")
 
-        # List actually available major indices
+        nfo_index_count = len([k for k, v in nfo_indices.items() if sum(v.values()) > 10])
+        bfo_index_count = len([k for k, v in bfo_indices.items() if sum(v.values()) > 5])
+
+        print(f"✅ NFO (NSE F&O): {len(nfo_instruments)} total instruments")
+        print(f"   • Indices with F&O: {nfo_index_count}")
+        print(f"✅ BFO (BSE F&O): {len(bfo_instruments)} total instruments")
+        print(f"   • Indices with F&O: {bfo_index_count}")
+
         major_indices = []
         for index_name, counts in nfo_indices.items():
-            if sum(counts.values()) > 50:  # Major indices
+            if sum(counts.values()) > 50:
                 major_indices.append(f"{index_name} (NSE)")
 
         for index_name, counts in bfo_indices.items():
-            if sum(counts.values()) > 10:  # Major BSE indices
+            if sum(counts.values()) > 10:
                 major_indices.append(f"{index_name} (BSE)")
 
         print(f"\n🎯 Major F&O Indices Actually Available:")
@@ -160,11 +185,12 @@ def check_actual_instrument_availability():
 
         return True
 
-    except Exception as e:
-        print(f"❌ Error during check: {e}")
+    except Exception as exc:
+        print(f"❌ Error during check: {exc}")
         import traceback
         traceback.print_exc()
         return False
+
 
 if __name__ == "__main__":
     print("🧪 Checking Actual F&O Instrument Availability")

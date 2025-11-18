@@ -1,0 +1,141 @@
+{
+  "date": "2025-10-24",
+  "timestamp": "2025-10-24 17:56:22 IST",
+  "trading_mode": "paper",
+  "cash": 242013.10288825416,
+  "total_value": 941436.1038655292,
+  "positions": {
+    "SENSEX25OCT84300PE": {
+      "shares": 360,
+      "entry_price": 461.95884683988885,
+      "current_price": 461.95884683988885,
+      "confidence": 0.8,
+      "sector": "SENSEX",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT13175PE": {
+      "shares": 700,
+      "entry_price": 68.8996979632,
+      "current_price": 68.8996979632,
+      "confidence": 0.8,
+      "sector": "MIDCPNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "SENSEX25OCT84300CE": {
+      "shares": 180,
+      "entry_price": 440.35819463611114,
+      "current_price": 440.35819463611114,
+      "confidence": 0.8,
+      "sector": "SENSEX",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT13175CE": {
+      "shares": 280,
+      "entry_price": 60.14512908999999,
+      "current_price": 60.14512908999999,
+      "confidence": 0.8,
+      "sector": "MIDCPNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "FINNIFTY25OCT27400CE": {
+      "shares": 585,
+      "entry_price": 116.97443686466667,
+      "current_price": 116.97443686466667,
+      "confidence": 0.8,
+      "sector": "FINNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "SENSEX25OCT84200CE": {
+      "shares": 20,
+      "entry_price": 487.52,
+      "current_price": 487.52,
+      "confidence": 0.8,
+      "sector": "SENSEX",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT13150CE": {
+      "shares": 1400,
+      "entry_price": 74.84115605649998,
+      "current_price": 74.84115605649998,
+      "confidence": 0.8,
+      "sector": "MIDCPNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "BANKEX25OCT65100CE": {
+      "shares": 240,
+      "entry_price": 371.9440832484999,
+      "current_price": 371.9440832484999,
+      "confidence": 0.8,
+      "sector": "BANKEX",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "FINNIFTY25OCT27400PE": {
+      "shares": 390,
+      "entry_price": 124.46839318750001,
+      "current_price": 124.46839318750001,
+      "confidence": 0.8,
+      "sector": "FINNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT13150PE": {
+      "shares": 1120,
+      "entry_price": 54.200668744,
+      "current_price": 54.200668744,
+      "confidence": 0.8,
+      "sector": "MIDCPNIFTY",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT13575CE": {
+      "shares": 280,
+      "entry_price": 3.85,
+      "current_price": 3.85,
+      "confidence": 0.75,
+      "sector": "MIDCPNIFTY",
+      "strategy": "strangle",
+      "pnl": 0.0
+    },
+    "MIDCPNIFTY25OCT12750PE": {
+      "shares": 280,
+      "entry_price": 3.9,
+      "current_price": 3.9,
+      "confidence": 0.75,
+      "sector": "MIDCPNIFTY",
+      "strategy": "strangle",
+      "pnl": 0.0
+    },
+    "FINNIFTY25OCT28250CE": {
+      "shares": 65,
+      "entry_price": 72.32,
+      "current_price": 72.32,
+      "confidence": 0.75,
+      "sector": "FINNIFTY",
+      "strategy": "strangle",
+      "pnl": 0.0
+    },
+    "FINNIFTY25OCT26550PE": {
+      "shares": 65,
+      "entry_price": 6.77,
+      "current_price": 6.77,
+      "confidence": 0.75,
+      "sector": "FINNIFTY",
+      "strategy": "strangle",
+      "pnl": 0.0
+    }
+  },
+  "position_count": 14,
+  "metadata": {
+    "save_type": "manual_complete_save",
+    "reason": "user_requested_today_data_save",
+    "system_time": "2025-10-24T17:56:22.871428+05:30"
+  }
+}

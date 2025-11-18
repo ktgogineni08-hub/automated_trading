@@ -1,3 +1,4 @@
 {
-    "codium.codeCompletion.enable": false
+    "codium.codeCompletion.enable": false,
+    "chat.mcp.gallery.enabled": true
 }
