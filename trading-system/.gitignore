@@ -24,3 +24,4 @@ zerodha_tokens.json
 instruments.pkl
 logs_database.db
 trading-system/bandit_report_comprehensive.json
+bandit_report_comprehensive.json
