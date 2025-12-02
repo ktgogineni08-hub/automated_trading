@@ -1,0 +1,15 @@
+# Logstash Configuration
+# Phase 4 Tier 3: Advanced Observability
+
+http.host: "0.0.0.0"
+xpack.monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+xpack.monitoring.enabled: false
+
+# Pipeline configuration
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# Log configuration
+log.level: info
+path.logs: /usr/share/logstash/logs

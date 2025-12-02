@@ -1,0 +1,742 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "alert-management",
+    "title": "Alert Management Dashboard",
+    "tags": ["alerts", "incidents", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "type": "stat",
+        "title": "Active Alerts",
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "orange",
+                  "value": 3
+                },
+                {
+                  "color": "red",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "type": "stat",
+        "title": "Critical Alerts (P0)",
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "type": "stat",
+        "title": "Avg Alert Duration",
+        "targets": [
+          {
+            "expr": "avg(time() - ALERTS_FOR_STATE{alertstate=\"firing\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 300
+                },
+                {
+                  "color": "red",
+                  "value": 900
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "type": "stat",
+        "title": "Alerts Last 24h",
+        "targets": [
+          {
+            "expr": "count(count_over_time(ALERTS{alertstate=\"firing\"}[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {
+          "h": 10,
+          "w": 12,
+          "x": 0,
+          "y": 5
+        },
+        "type": "table",
+        "title": "Active Alerts",
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\"}",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "job": true,
+                "instance": true,
+                "alertstate": true
+              },
+              "indexByName": {
+                "alertname": 0,
+                "severity": 1,
+                "description": 2,
+                "Value": 3
+              },
+              "renameByName": {
+                "alertname": "Alert",
+                "severity": "Severity",
+                "description": "Description",
+                "Value": "Duration"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Severity"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-background"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "critical": {
+                          "color": "dark-red",
+                          "text": "CRITICAL"
+                        },
+                        "warning": {
+                          "color": "dark-yellow",
+                          "text": "WARNING"
+                        },
+                        "info": {
+                          "color": "dark-blue",
+                          "text": "INFO"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Duration"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "s"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Severity",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {
+          "h": 10,
+          "w": 12,
+          "x": 12,
+          "y": 5
+        },
+        "type": "timeseries",
+        "title": "Alert Firing Timeline",
+        "targets": [
+          {
+            "expr": "sum by(alertname) (ALERTS{alertstate=\"firing\"})",
+            "refId": "A",
+            "legendFormat": "{{alertname}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "stepAfter",
+              "fillOpacity": 30,
+              "lineWidth": 2
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 15
+        },
+        "type": "bargauge",
+        "title": "Alerts by Severity",
+        "targets": [
+          {
+            "expr": "count by(severity) (ALERTS{alertstate=\"firing\"})",
+            "refId": "A",
+            "legendFormat": "{{severity}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 8,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 15
+        },
+        "type": "piechart",
+        "title": "Alerts by Component",
+        "targets": [
+          {
+            "expr": "count by(component) (ALERTS{alertstate=\"firing\"})",
+            "refId": "A",
+            "legendFormat": "{{component}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 23
+        },
+        "type": "timeseries",
+        "title": "Alert Rate Over Time",
+        "targets": [
+          {
+            "expr": "sum(increase(ALERTS_FOR_STATE{alertstate=\"firing\"}[5m]))",
+            "refId": "A",
+            "legendFormat": "New Alerts (5m)"
+          },
+          {
+            "expr": "sum(increase(ALERTS_FOR_STATE{alertstate=\"resolved\"}[5m]))",
+            "refId": "B",
+            "legendFormat": "Resolved Alerts (5m)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 60
+            },
+            "unit": "short"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "New Alerts (5m)"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "red"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Resolved Alerts (5m)"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "green"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {
+          "h": 10,
+          "w": 12,
+          "x": 0,
+          "y": 31
+        },
+        "type": "table",
+        "title": "Recent Alert History (24h)",
+        "targets": [
+          {
+            "expr": "count_over_time(ALERTS[24h])",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": false,
+                "job": true,
+                "instance": true
+              },
+              "indexByName": {
+                "Time": 0,
+                "alertname": 1,
+                "severity": 2,
+                "Value": 3
+              },
+              "renameByName": {
+                "Time": "Timestamp",
+                "alertname": "Alert",
+                "severity": "Severity",
+                "Value": "Count"
+              }
+            }
+          }
+        ],
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Timestamp",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 11,
+        "gridPos": {
+          "h": 10,
+          "w": 12,
+          "x": 12,
+          "y": 31
+        },
+        "type": "table",
+        "title": "Top Frequent Alerts",
+        "targets": [
+          {
+            "expr": "topk(10, count_over_time(ALERTS{alertstate=\"firing\"}[24h]))",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "job": true,
+                "instance": true,
+                "alertstate": true
+              },
+              "indexByName": {
+                "alertname": 0,
+                "severity": 1,
+                "component": 2,
+                "Value": 3
+              },
+              "renameByName": {
+                "alertname": "Alert",
+                "severity": "Severity",
+                "component": "Component",
+                "Value": "Occurrences"
+              }
+            }
+          }
+        ],
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Occurrences",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 41
+        },
+        "type": "timeseries",
+        "title": "MTTD - Mean Time To Detect",
+        "targets": [
+          {
+            "expr": "avg(alert_detection_time_seconds)",
+            "refId": "A",
+            "legendFormat": "Avg MTTD"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 41
+        },
+        "type": "timeseries",
+        "title": "MTTR - Mean Time To Resolve",
+        "targets": [
+          {
+            "expr": "avg(alert_resolution_time_seconds)",
+            "refId": "A",
+            "legendFormat": "Avg MTTR"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 900
+                },
+                {
+                  "color": "red",
+                  "value": 1800
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 14,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 41
+        },
+        "type": "stat",
+        "title": "Alert Success Rate",
+        "targets": [
+          {
+            "expr": "100 * (sum(increase(ALERTS_FOR_STATE{alertstate=\"resolved\"}[24h])) / sum(increase(ALERTS_FOR_STATE{alertstate=\"firing\"}[24h])))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 80
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 15,
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 49
+        },
+        "type": "table",
+        "title": "Alert Runbook Links",
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\"}",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "job": true,
+                "instance": true,
+                "alertstate": true,
+                "Value": true
+              },
+              "indexByName": {
+                "alertname": 0,
+                "severity": 1,
+                "description": 2,
+                "runbook_url": 3
+              },
+              "renameByName": {
+                "alertname": "Alert",
+                "severity": "Severity",
+                "description": "Description",
+                "runbook_url": "Runbook"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Runbook"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View Runbook",
+                      "url": "${__value.text}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "severity",
+          "label": "Severity",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(ALERTS, severity)",
+          "multi": true,
+          "includeAll": true,
+          "refresh": 1
+        },
+        {
+          "name": "component",
+          "label": "Component",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(ALERTS, component)",
+          "multi": true,
+          "includeAll": true,
+          "refresh": 1
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}

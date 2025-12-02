@@ -1,0 +1,200 @@
+# ArgoCD Application Manifest for Trading System
+# Phase 4 Tier 5: GitOps & Automation
+#
+# This defines the trading system application in ArgoCD
+# ArgoCD will automatically sync changes from git to Kubernetes
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trading-system-prod
+  namespace: argocd
+  # Finalizer ensures proper cleanup
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app: trading-system
+    environment: production
+spec:
+  # Project that application belongs to
+  project: trading-system
+  
+  # Source repository configuration
+  source:
+    repoURL: https://github.com/your-org/trading-system
+    targetRevision: main  # Branch, tag, or commit SHA
+    path: k8s/multi-region  # Path to Kubernetes manifests
+    
+    # Helm configuration (if using Helm)
+    # helm:
+    #   releaseName: trading-system
+    #   valueFiles:
+    #     - values-prod.yaml
+    #   parameters:
+    #     - name: image.tag
+    #       value: "4.0"
+    
+    # Kustomize configuration (if using Kustomize)
+    # kustomize:
+    #   namePrefix: prod-
+    #   nameSuffix: -v4
+    #   images:
+    #     - trading-system=trading-system:4.0
+  
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc  # In-cluster
+    namespace: trading-system
+  
+  # Sync policy
+  syncPolicy:
+    # Automated sync
+    automated:
+      prune: true  # Delete resources not in git
+      selfHeal: true  # Automatically fix drift
+      allowEmpty: false  # Don't delete all resources if git path is empty
+    
+    # Sync options
+    syncOptions:
+      - CreateNamespace=true  # Create namespace if doesn't exist
+      - PrunePropagationPolicy=foreground  # Proper cleanup
+      - PruneLast=true  # Prune after successful sync
+      - RespectIgnoreDifferences=true  # Respect ignore differences
+      - ApplyOutOfSyncOnly=true  # Only apply out-of-sync resources
+    
+    # Retry configuration
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore certain differences
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignore replica count (managed by HPA)
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data  # Ignore secret data changes
+  
+  # Health checks
+  revisionHistoryLimit: 10
+
+---
+# ArgoCD AppProject for Trading System
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: trading-system
+  namespace: argocd
+spec:
+  description: Trading System Project
+  
+  # Source repositories
+  sourceRepos:
+    - https://github.com/your-org/trading-system
+    - https://charts.bitnami.com/bitnami
+  
+  # Destination clusters
+  destinations:
+    - namespace: trading-system
+      server: https://kubernetes.default.svc
+    - namespace: trading-system
+      server: https://prod-cluster-1.example.com
+    - namespace: trading-system
+      server: https://prod-cluster-2.example.com
+  
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+  
+  # Namespace resource whitelist (blacklist alternative)
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: '*'
+    - group: 'apps'
+      kind: '*'
+    - group: 'batch'
+      kind: '*'
+    - group: 'networking.k8s.io'
+      kind: '*'
+    - group: 'policy'
+      kind: '*'
+    - group: 'autoscaling'
+      kind: '*'
+  
+  # Sync windows for controlled deployments
+  syncWindows:
+    - kind: allow
+      schedule: '0 9-17 * * MON-FRI'  # Business hours
+      duration: 8h
+      applications:
+        - trading-system-prod
+      namespaces:
+        - trading-system
+    - kind: deny
+      schedule: '0 0-8,18-23 * * *'  # Off-hours (block deployments)
+      duration: 10h
+      applications:
+        - trading-system-prod
+  
+  # Orphaned resources monitoring
+  orphanedResources:
+    warn: true
+
+---
+# Multi-cluster application (for multi-region)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: trading-system-multi-region
+  namespace: argocd
+spec:
+  generators:
+    # List of clusters
+    - list:
+        elements:
+          - cluster: us-east-1
+            url: https://k8s-us-east-1.example.com
+            region: us-east-1
+          - cluster: us-west-2
+            url: https://k8s-us-west-2.example.com
+            region: us-west-2
+          - cluster: eu-west-1
+            url: https://k8s-eu-west-1.example.com
+            region: eu-west-1
+  
+  template:
+    metadata:
+      name: 'trading-system-{{cluster}}'
+      labels:
+        region: '{{region}}'
+    spec:
+      project: trading-system
+      source:
+        repoURL: https://github.com/your-org/trading-system
+        targetRevision: main
+        path: k8s/multi-region
+        # Override region-specific config
+        helm:
+          parameters:
+            - name: region
+              value: '{{region}}'
+      destination:
+        server: '{{url}}'
+        namespace: trading-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

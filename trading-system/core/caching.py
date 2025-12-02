@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional, Union
 import redis
 
 logger = logging.getLogger(__name__)
-
 try:
     import numpy as np  # type: ignore
 except Exception:  # pragma: no cover - numpy optional

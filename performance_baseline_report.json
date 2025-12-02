@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-11-02 22:20:11",
+  "system_resources": {
+    "cpu_percent": 11.6,
+    "cpu_count": 8,
+    "memory_total_gb": 16.0,
+    "memory_available_gb": 2.82177734375,
+    "memory_percent": 82.4,
+    "disk_total_gb": 460.4317207336426,
+    "disk_used_gb": 11.21457290649414,
+    "disk_percent": 3.2
+  },
+  "import_times": {
+    "config": 3.4530162811279297,
+    "core.trading_system": 573.6520290374756,
+    "core.portfolio": 0.0,
+    "strategies.moving_average": 0.00095367431640625,
+    "fno.terminal": 0.0011920928955078125,
+    "utilities.structured_logger": 0.00095367431640625,
+    "infrastructure.performance_monitor": 1.9147396087646484
+  },
+  "baseline_established": true
+}

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-system-prod
+  labels:
+    name: trading-system-prod
+    environment: production

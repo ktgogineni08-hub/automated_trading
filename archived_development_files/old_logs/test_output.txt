@@ -1,0 +1,141 @@
+
+
+╔====================================================================╗
+║               PHASE 6 INTEGRATION TESTS                            ║
+║               Trading System Validation                            ║
+╚====================================================================╝
+
+======================================================================
+TEST 1: Module Import Validation
+======================================================================
+  ✅ strategies.base.BaseStrategy
+  ✅ strategies.moving_average.ImprovedMovingAverageCrossover
+  ✅ strategies.rsi.EnhancedRSIStrategy
+  ✅ strategies.bollinger.BollingerBandsStrategy
+  ✅ strategies.volume_breakout.ImprovedVolumeBreakoutStrategy
+  ✅ strategies.momentum.EnhancedMomentumStrategy
+  ✅ infrastructure.caching.LRUCacheWithTTL
+  ✅ infrastructure.rate_limiting.EnhancedRateLimiter
+  ✅ data.provider.DataProvider
+  ✅ core.signal_aggregator.EnhancedSignalAggregator
+  ✅ core.regime_detector.MarketRegimeDetector
+  ✅ core.transaction.TradingTransaction
+  ✅ core.portfolio.UnifiedPortfolio
+  ✅ core.trading_system.UnifiedTradingSystem
+  ✅ fno.indices.IndexConfig
+  ✅ fno.options.OptionContract
+  ✅ fno.options.OptionChain
+  ✅ fno.data_provider.FNODataProvider
+  ✅ fno.strategies.FNOStrategy
+  ✅ fno.broker.FNOBroker
+  ✅ fno.analytics.FNOAnalytics
+  ✅ fno.analytics.FNOBacktester
+  ✅ fno.strategy_selector.IntelligentFNOStrategySelector
+  ✅ fno.terminal.FNOTerminal
+  ✅ utilities.logger.TradingLogger
+  ✅ utilities.dashboard.DashboardConnector
+  ✅ utilities.market_hours.MarketHoursManager
+  ✅ utilities.state_managers.TradingStateManager
+  ✅ utilities.state_managers.EnhancedStateManager
+
+Results: 29 passed, 0 failed out of 29 tests
+
+======================================================================
+TEST 2: Main Entry Point Validation
+======================================================================
+  ✅ ensure_correct_directory()
+  ✅ setup_zerodha_authentication()
+  ✅ display_main_menu()
+  ✅ display_nifty_menu()
+  ✅ display_fno_menu()
+  ✅ run_paper_trading()
+  ✅ run_backtesting()
+  ✅ run_live_trading()
+  ✅ run_fno_trading()
+  ✅ start_dashboard()
+  ✅ main()
+
+Results: 11 passed, 0 failed out of 11 functions
+
+======================================================================
+TEST 3: Circular Import Detection
+======================================================================
+  ✅ Infrastructure imports clean
+  ✅ Strategies imports clean
+  ✅ Data provider imports clean
+  ✅ Core system imports clean
+  ✅ FNO system imports clean
+  ✅ Utilities imports clean
+  ✅ Main entry point imports clean
+
+Results: No circular import issues detected
+
+======================================================================
+TEST 4: Class Instantiation
+======================================================================
+  ✅ BaseStrategy instantiation
+  ✅ LRUCacheWithTTL instantiation
+  ✅ EnhancedRateLimiter instantiation
+  ✅ EnhancedSignalAggregator instantiation
+  ✅ TradingLogger instantiation
+
+Results: 5 passed, 0 failed out of 5 instantiation tests
+
+======================================================================
+TEST 5: Module Structure Validation
+======================================================================
+  ✅ strategies/ directory exists
+     ✅ __init__.py
+     ✅ base.py
+     ✅ moving_average.py
+     ✅ rsi.py
+     ✅ bollinger.py
+     ✅ volume_breakout.py
+     ✅ momentum.py
+  ✅ infrastructure/ directory exists
+     ✅ __init__.py
+     ✅ caching.py
+     ✅ rate_limiting.py
+  ✅ data/ directory exists
+     ✅ __init__.py
+     ✅ provider.py
+  ✅ core/ directory exists
+     ✅ __init__.py
+     ✅ signal_aggregator.py
+     ✅ regime_detector.py
+     ✅ transaction.py
+     ✅ portfolio.py
+     ✅ trading_system.py
+  ✅ fno/ directory exists
+     ✅ __init__.py
+     ✅ indices.py
+     ✅ options.py
+     ✅ data_provider.py
+     ✅ strategies.py
+     ✅ broker.py
+     ✅ analytics.py
+     ✅ strategy_selector.py
+     ✅ terminal.py
+  ✅ utilities/ directory exists
+     ✅ __init__.py
+     ✅ logger.py
+     ✅ dashboard.py
+     ✅ market_hours.py
+     ✅ state_managers.py
+  ✅ main.py exists
+
+Results: All expected files and directories found
+
+======================================================================
+INTEGRATION TEST SUMMARY
+======================================================================
+  ✅ PASS - Module Imports
+  ✅ PASS - Main Entry Point
+  ✅ PASS - Circular Imports
+  ✅ PASS - Class Instantiation
+  ✅ PASS - Module Structure
+
+Overall: 5/5 test suites passed
+
+🎉 ALL INTEGRATION TESTS PASSED!
+✅ The modular trading system is ready for deployment

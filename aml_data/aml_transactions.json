@@ -1,0 +1,29 @@
+[
+  {
+    "transaction_id": "TRADE_aacbac1e4b6b43e6bfaecd5a19107f92",
+    "client_id": "CLIENT_001",
+    "amount": 199686.2,
+    "transaction_type": "trade",
+    "timestamp": "2025-11-25T23:16:45.050390",
+    "counterparty": "market",
+    "description": "BUY 133 INFY"
+  },
+  {
+    "transaction_id": "TRADE_470e55e1041b4b2aa86cbc64b281d545",
+    "client_id": "CLIENT_001",
+    "amount": 199735.41,
+    "transaction_type": "trade",
+    "timestamp": "2025-11-25T23:18:36.293301",
+    "counterparty": "market",
+    "description": "BUY 133 INFY"
+  },
+  {
+    "transaction_id": "TRADE_ac6738800868490981a83e46cfaa648e",
+    "client_id": "CLIENT_001",
+    "amount": 198025.03,
+    "transaction_type": "trade",
+    "timestamp": "2025-11-25T23:18:41.345097",
+    "counterparty": "market",
+    "description": "SELL 133 INFY"
+  }
+]

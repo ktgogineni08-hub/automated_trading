@@ -23,3 +23,17 @@ zerodha_access.token
 zerodha_tokens.json
 instruments.pkl
 logs_database.db
+trading-system/bandit_report_comprehensive.json
+bandit_report_comprehensive.json
+
+# Additional ignores
+.env.*
+*.db
+logs/
+backtest_results/
+trade_archives/
+protected_data/
+keys/
+certs/
+trading-system/keys/
+trade_archives_backup/

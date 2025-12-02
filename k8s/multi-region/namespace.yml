@@ -1,0 +1,49 @@
+# Multi-Region Namespace Configuration
+# Phase 4 Tier 4: Multi-Region & High Availability
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-system
+  labels:
+    name: trading-system
+    environment: production
+    app.kubernetes.io/name: trading-system
+    app.kubernetes.io/version: "4.0"
+---
+# Resource quotas for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: trading-system-quota
+  namespace: trading-system
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "3"
+---
+# Limit ranges for pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: trading-system-limits
+  namespace: trading-system
+spec:
+  limits:
+  - max:
+      cpu: "2"
+      memory: 4Gi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: "1"
+      memory: 2Gi
+    defaultRequest:
+      cpu: 250m
+      memory: 512Mi
+    type: Container

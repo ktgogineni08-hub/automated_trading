@@ -1,0 +1,62 @@
+{
+  "timestamp": "2025-11-25T23:18:36.299365+05:30",
+  "trading_mode": "paper",
+  "cash": 514758.4574092514,
+  "positions": {
+    "TEST_NIFTY_CE": {
+      "shares": 75,
+      "entry_price": 220.66,
+      "current_price": 220.66,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "TEST_NIFTY_PE": {
+      "shares": 75,
+      "entry_price": 185.56,
+      "current_price": 185.56,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "straddle",
+      "pnl": 0.0
+    },
+    "TEST_BANKNIFTY_CE": {
+      "shares": 50,
+      "entry_price": 396.19,
+      "current_price": 396.19,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "iron_condor",
+      "pnl": 0.0
+    },
+    "TEST_FINNIFTY_CE": {
+      "shares": 100,
+      "entry_price": 165.5,
+      "current_price": 165.5,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "strangle",
+      "pnl": 0.0
+    },
+    "TEST_MIDCPNIFTY_PE": {
+      "shares": 150,
+      "entry_price": 125.38,
+      "current_price": 125.38,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "butterfly",
+      "pnl": 0.0
+    },
+    "INFY": {
+      "shares": 266,
+      "entry_price": 1501.8155264367613,
+      "current_price": 1501.8155264367613,
+      "confidence": 0.9,
+      "sector": "Other",
+      "strategy": "SimulationStrategy",
+      "pnl": 0.0
+    }
+  },
+  "total_value": 999874.38744143
+}
