@@ -19,13 +19,13 @@ import pandas as pd
 import numpy as np
 from kiteconnect import KiteConnect
 
-import config
+from unified_config import get_config
 from utilities.structured_logger import get_logger, log_function_call
 from trading_utils import (
     validate_financial_amount, get_ist_now, format_ist_timestamp,
     safe_divide, is_zero, float_equals
 )
-from risk_manager import RiskManager
+from core.unified_risk_manager import UnifiedRiskManager
 from sebi_compliance import SEBIComplianceChecker
 from enhanced_technical_analysis import EnhancedTechnicalAnalysis
 from realistic_pricing import RealisticPricingEngine
@@ -34,19 +34,20 @@ from trade_quality_filter import TradeQualityFilter
 from safe_file_ops import atomic_write_json
 from utilities.dashboard import DashboardConnector
 from utilities.market_hours import MarketHoursManager
-from .order_execution_mixin import OrderExecutionMixin
+from core.trade_executor import TradeExecutor
 from .compliance_mixin import ComplianceMixin
 from .dashboard_mixin import DashboardSyncMixin
 
 logger = get_logger(__name__)
 
 
-class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin):
+class UnifiedPortfolio(ComplianceMixin, DashboardSyncMixin):
     """Unified portfolio that handles all trading modes"""
 
     def __init__(self, initial_cash: float = None, dashboard: DashboardConnector = None, kite: KiteConnect = None, trading_mode: str = 'paper', silent: bool = False, security_context: Any = None):
         # VALIDATION FIX: Validate financial amounts
-        raw_cash = initial_cash or config.initial_capital
+        self.system_config = get_config()
+        raw_cash = initial_cash or self.system_config.get('trading.capital.initial', 100000.0)
         validated_cash = validate_financial_amount(float(raw_cash), min_val=1000.0, max_val=100000000.0)
         self.initial_cash = validated_cash
         self.cash = validated_cash
@@ -108,19 +109,19 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
         if not self.silent:
             logger.info("✅ Price cache initialized (1000 items, 60s TTL)")
 
-        # Professional trading modules (Guide-based)
-        self.risk_manager = RiskManager(
+        # Initialize Unified Risk Manager
+        self.risk_manager = UnifiedRiskManager(
             total_capital=self.initial_cash,
-            risk_per_trade_pct=0.01  # 1% rule (Guide Section 7.1)
+            risk_per_trade_pct=self.system_config.risk.risk_per_trade_pct,
+            max_sector_exposure_pct=0.30, # TODO: Add to config
+            max_correlation_exposure_pct=0.40 # TODO: Add to config
         )
 
-        trading_cfg = config.get_config().get_trading_config() if hasattr(config, "get_config") else {}
-        risk_controls = trading_cfg.get('risk_controls', {}) if isinstance(trading_cfg, dict) else {}
-        self.max_trades_per_day = int(risk_controls.get('max_trades_per_day', 150))
-        self.max_open_positions_limit = int(risk_controls.get('max_open_positions', trading_cfg.get('max_positions', 10) if isinstance(trading_cfg, dict) else 10))
-        self.max_trades_per_symbol_per_day = int(risk_controls.get('max_trades_per_symbol_per_day', 8))
-        self.max_sector_exposure = int(risk_controls.get('max_sector_exposure', 6))
-        self.min_entry_confidence = float(risk_controls.get('min_confidence', 0.8))
+        self.max_trades_per_day = self.system_config.risk.max_trades_per_day
+        self.max_open_positions_limit = self.system_config.risk.max_open_positions
+        self.max_trades_per_symbol_per_day = self.system_config.risk.max_trades_per_symbol_per_day
+        self.max_sector_exposure = self.system_config.risk.max_sector_exposure
+        self.min_entry_confidence = self.system_config.strategies.min_confidence
 
         self.sebi_compliance = SEBIComplianceChecker(kite=self.kite)
         self.technical_analyzer = EnhancedTechnicalAnalysis()
@@ -129,6 +130,9 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
         self.pricing_engine = RealisticPricingEngine()
         self.exit_manager = IntelligentExitManager()
         self.quality_filter = TradeQualityFilter()
+        
+        # Initialize Trade Executor
+        self.trade_executor = TradeExecutor(self)
 
         if not self.silent:
             logger.info("✅ Professional trading modules initialized (Guide-based)")
@@ -141,8 +145,8 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
             if not self.silent:
                 logger.info("🔴 LIVE TRADING MODE - Real money at risk!")
         elif trading_mode == 'paper':
-            self.min_position_size = config.min_position_size
-            self.max_position_size = config.max_position_size
+            self.min_position_size = self.system_config.risk.min_position_size_pct
+            self.max_position_size = self.system_config.risk.max_position_size_pct
             if not self.silent:
                 logger.info("📝 PAPER TRADING MODE - Safe simulation!")
         else:  # backtesting
@@ -166,11 +170,11 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
             self.trailing_activation_multiplier = 1.1
             self.trailing_stop_multiplier = 0.9
         else:
-            self.risk_per_trade_pct = config.risk_per_trade_pct
-            self.atr_stop_multiplier = config.atr_stop_multiplier
-            self.atr_target_multiplier = config.atr_target_multiplier
-            self.trailing_activation_multiplier = config.trailing_activation_multiplier
-            self.trailing_stop_multiplier = config.trailing_stop_multiplier
+            self.risk_per_trade_pct = self.system_config.risk.risk_per_trade_pct
+            self.atr_stop_multiplier = self.system_config.risk.atr_stop_multiplier
+            self.atr_target_multiplier = self.system_config.risk.atr_target_multiplier
+            self.trailing_activation_multiplier = self.system_config.risk.trailing_activation_multiplier
+            self.trailing_stop_multiplier = self.system_config.risk.trailing_stop_multiplier
 
         # Trade archival system - Daily trade export (use absolute paths)
         repo_root = Path(__file__).resolve().parent.parent.parent
@@ -533,11 +537,8 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
                     pass
 
             if current_price <= 0:
-                tick = max(0.05, abs(entry_price) * 0.005)
-                current_price = entry_price + tick if shares > 0 else max(entry_price - tick, 0.05)
-                logger.warning(
-                    f"⚠️ Falling back to synthetic price for {symbol}: ₹{current_price:.2f}"
-                )
+                logger.error(f"❌ CRITICAL: Cannot close position {symbol} - No valid price available. Manual intervention required.")
+                return False
 
             invested_amount = float(position.get('invested_amount', entry_price * shares_abs))
 
@@ -576,8 +577,10 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
             # Log the closure
             logger.info(f"❌ Closed position {symbol}: {shares} shares at ₹{current_price:.2f} (P&L: ₹{pnl:.2f}, Reason: {reason})")
 
-            # Remove position
-            del self.positions[symbol]
+            # THREAD SAFETY FIX: Atomic position removal
+            with self._position_lock:
+                if symbol in self.positions:
+                    del self.positions[symbol]
             return True
 
         except Exception as e:
@@ -777,6 +780,18 @@ class UnifiedPortfolio(OrderExecutionMixin, ComplianceMixin, DashboardSyncMixin)
             }
 
         return position_analysis
+
+    def execute_trade(self, symbol: str, shares: int, price: float, side: str, timestamp: datetime = None, confidence: float = 0.5, sector: str = None, atr: float = None, allow_immediate_sell: bool = False, strategy: str = None) -> Optional[Dict]:
+        """Delegate trade execution to TradeExecutor"""
+        return self.trade_executor.execute_trade(symbol, shares, price, side, timestamp, confidence, sector, atr, allow_immediate_sell, strategy)
+
+    def calculate_transaction_costs(self, amount: float, trade_type: str, symbol: Optional[str] = None) -> float:
+        """Delegate transaction cost calculation"""
+        return self.trade_executor.calculate_transaction_costs(amount, trade_type, symbol)
+
+    def place_live_order(self, symbol: str, quantity: int, price: float, side: str) -> Optional[str]:
+        """Delegate live order placement"""
+        return self.trade_executor.place_live_order(symbol, quantity, price, side)
 
     def execute_position_exits(self, position_analysis: Dict[str, Dict]) -> List[Dict]:
         """Execute exits for positions that meet exit criteria with improved execution"""

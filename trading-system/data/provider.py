@@ -12,7 +12,7 @@ from typing import Dict, Tuple, Optional
 from kiteconnect import KiteConnect
 import logging
 
-import config
+from unified_config import get_config
 from infrastructure.rate_limiting import EnhancedRateLimiter
 from infrastructure.caching import LRUCacheWithTTL
 from enhanced_technical_analysis import EnhancedTechnicalAnalysis
@@ -42,7 +42,8 @@ class DataProvider:
         self.use_yf = use_yf_fallback
         self.rate_limiter = EnhancedRateLimiter()
         self.cache: Dict[str, Tuple[float, pd.DataFrame]] = {}
-        self.cache_ttl = config.cache_ttl_seconds
+        self.system_config = get_config()
+        self.cache_ttl = 60 # Default TTL
 
         # LRU cache for price data (60-second TTL)
         self.price_cache = LRUCacheWithTTL(max_size=1000, ttl_seconds=60)
@@ -73,53 +74,62 @@ class DataProvider:
         cache_key = f"{symbol}_{interval}_{days}"
 
         # Check cache first
-        if cache_key in self.cache:
-            timestamp, data = self.cache[cache_key]
-            if (time.time() - timestamp) < self.cache_ttl:
-                return data
+        cached_data = self.price_cache.get(cache_key)
+        if cached_data is not None:
+            return cached_data
+
+        if not self.kite:
+            return pd.DataFrame()
+
+        # Check missing token cache
+        if symbol in self._missing_token_cache:
+            return pd.DataFrame()
 
         token = self.instruments.get(symbol)
+        if not token:
+            self._missing_token_cache.add(symbol)
+            if symbol not in self._missing_token_logged:
+                self._missing_token_logged.add(symbol)
+                if symbol not in ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX']:
+                    logger.warning(f"No instrument token found for {symbol}")
+            return pd.DataFrame()
 
         for attempt in range(max_retries):
             try:
-                if token and self.kite:
-                    end = datetime.now()
-                    start = end - timedelta(days=days)
-                    if not self.rate_limiter.acquire('historical_data'):
-                        continue
-                    candles = self.kite.historical_data(token, start, end, interval)
+                end = datetime.now()
+                start = end - timedelta(days=days)
+                
+                if not self.rate_limiter.acquire('historical_data'):
+                    logger.warning(f"Rate limit hit for {symbol}, retrying...")
+                    time.sleep(0.5) # Short sleep to allow token refill
+                    continue
 
-                    if candles:
-                        df = pd.DataFrame(candles)
-                        if "date" in df.columns:
-                            df["date"] = pd.to_datetime(df["date"])
-                            df.set_index("date", inplace=True)
+                candles = self.kite.historical_data(token, start, end, interval)
 
-                        # Ensure standard column names
-                        df = df.rename(columns={
-                            "open": "open",
-                            "high": "high",
-                            "low": "low",
-                            "close": "close",
-                            "volume": "volume"
-                        })
+                if candles:
+                    df = pd.DataFrame(candles)
+                    if "date" in df.columns:
+                        df["date"] = pd.to_datetime(df["date"])
+                        df.set_index("date", inplace=True)
 
-                        # Ensure all expected columns exist
-                        expected_cols = ["open", "high", "low", "close", "volume"]
-                        for c in expected_cols:
-                            if c not in df.columns:
-                                df[c] = np.nan
+                    # Ensure standard column names
+                    df = df.rename(columns={
+                        "open": "open",
+                        "high": "high",
+                        "low": "low",
+                        "close": "close",
+                        "volume": "volume"
+                    })
 
-                        df = df[expected_cols]
-                        self.cache[cache_key] = (time.time(), df)
-                        return df
+                    # Ensure all expected columns exist
+                    expected_cols = ["open", "high", "low", "close", "volume"]
+                    for c in expected_cols:
+                        if c not in df.columns:
+                            df[c] = np.nan
 
-                # Fallback to Kite-only fetch
-                if self.use_yf:
-                    df = self._kite_only_fetch(symbol, interval, days)
-                    if not df.empty:
-                        self.cache[cache_key] = (time.time(), df)
-                        return df
+                    df = df[expected_cols]
+                    self.price_cache.set(cache_key, df)
+                    return df
 
             except Exception as e:
                 logger.error(f"Data fetch attempt {attempt + 1} failed for {symbol}: {e}")
@@ -129,72 +139,6 @@ class DataProvider:
 
         logger.error(f"Failed to fetch data for {symbol} after {max_retries} attempts")
         return pd.DataFrame()
-
-    def _kite_only_fetch(self, symbol: str, interval: str, days: int) -> pd.DataFrame:
-        """
-        Fetch data using only Kite API - no external fallbacks
-
-        Args:
-            symbol: Trading symbol
-            interval: Candle interval
-            days: Number of days
-
-        Returns:
-            DataFrame with OHLCV data or empty DataFrame
-        """
-        if not self.kite:
-            logger.debug(f"Kite API not available for {symbol}")
-            return pd.DataFrame()
-
-        # Check if we've already determined this symbol has no token
-        if symbol in self._missing_token_cache:
-            return pd.DataFrame()
-
-        try:
-            # Get instrument token for the symbol
-            token = self.instruments.get(symbol)
-            if not token:
-                # Cache this symbol to avoid repeated lookups
-                self._missing_token_cache.add(symbol)
-
-                # Log only once per symbol to avoid spam
-                if symbol not in self._missing_token_logged:
-                    self._missing_token_logged.add(symbol)
-                    # For indices like NIFTY, BANKNIFTY - use debug to avoid log spam
-                    if symbol in ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX']:
-                        logger.debug(f"Index {symbol} not in equity instruments map (expected)")
-                    else:
-                        logger.warning(f"No instrument token found for {symbol} in instruments map")
-
-                return pd.DataFrame()
-
-            # Calculate date range
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
-
-            # Fetch historical data from Kite
-            candles = self.kite.historical_data(token, start_date, end_date, interval)
-
-            if not candles:
-                logger.error(f"❌ No historical data available for {symbol}")
-                return pd.DataFrame()
-
-            # Convert to DataFrame with expected columns
-            df = pd.DataFrame(candles)
-            df['date'] = pd.to_datetime(df['date'])
-
-            # Ensure expected columns exist
-            expected = ["open", "high", "low", "close", "volume"]
-            for col in expected:
-                if col not in df.columns:
-                    df[col] = np.nan
-
-            logger.info(f"✅ Fetched {len(df)} candles for {symbol} from Kite API")
-            return df[expected]
-
-        except Exception as e:
-            logger.error(f"❌ Kite data fetch failed for {symbol}: {e}")
-            return pd.DataFrame()
 
     def get_enhanced_technical_signals(
         self,

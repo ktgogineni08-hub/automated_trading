@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-11-04T12:26:23.399085+05:30",
+  "timestamp": "2025-11-25T23:18:36.299365+05:30",
   "trading_mode": "paper",
-  "cash": 933123.8203566,
+  "cash": 514758.4574092514,
   "positions": {
     "TEST_NIFTY_CE": {
       "shares": 75,
@@ -38,7 +38,25 @@
       "sector": "F&O",
       "strategy": "strangle",
       "pnl": 0.0
+    },
+    "TEST_MIDCPNIFTY_PE": {
+      "shares": 150,
+      "entry_price": 125.38,
+      "current_price": 125.38,
+      "confidence": 0.8,
+      "sector": "F&O",
+      "strategy": "butterfly",
+      "pnl": 0.0
+    },
+    "INFY": {
+      "shares": 266,
+      "entry_price": 1501.8155264367613,
+      "current_price": 1501.8155264367613,
+      "confidence": 0.9,
+      "sector": "Other",
+      "strategy": "SimulationStrategy",
+      "pnl": 0.0
     }
   },
-  "total_value": 999949.8203566
+  "total_value": 999874.38744143
 }

@@ -116,12 +116,41 @@ class StrategyConfig:
 
 
 @dataclass
+class MarketHoursConfig:
+    """Market hours configuration"""
+    start: str
+    end: str
+    timezone: str
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+
+@dataclass
+class DashboardConfig:
+    """Dashboard configuration"""
+    host: str
+    port: int
+    auto_open_browser: bool
+    api_key: str
+    ssl_enabled: bool
+    cert_file: Optional[str]
+    key_file: Optional[str]
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+
+@dataclass
 class TradingConfig:
     """Complete trading system configuration"""
     # Core configurations
     api: APIConfig
     risk: RiskConfig
     strategies: StrategyConfig
+    market_hours: MarketHoursConfig
+    dashboard: DashboardConfig
+    market_indexes: Dict[str, int]
 
     # Raw configuration data
     raw_config: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -141,17 +170,9 @@ class TradingConfig:
             config_path = Path(__file__).parent / "trading_config.yaml"
 
         if not config_path.exists():
-            # Try legacy JSON config
-            legacy_path = Path(__file__).parent / "trading_config.json"
-            if legacy_path.exists():
-                logger.warning(
-                    f"⚠️  Using legacy JSON config. Please migrate to {config_path}"
-                )
-                return cls._load_legacy_json(legacy_path)
-
             raise FileNotFoundError(
                 f"Config file not found: {config_path}\n"
-                f"Please create trading_config.yaml or run migration script"
+                f"Please create trading_config.yaml"
             )
 
         logger.info(f"📋 Loading configuration from {config_path}")
@@ -198,6 +219,24 @@ class TradingConfig:
             stop_loss_cooldown_minutes=config['trading']['strategies']['stop_loss_cooldown_minutes']
         )
 
+        market_hours_config = MarketHoursConfig(
+            start=config['trading']['hours']['start'],
+            end=config['trading']['hours']['end'],
+            timezone=config['trading']['hours']['timezone']
+        )
+
+        dashboard_config = DashboardConfig(
+            host=config['dashboard']['host'],
+            port=int(config['dashboard']['port']),
+            auto_open_browser=config['dashboard']['auto_open_browser'],
+            api_key=config['dashboard']['api_key'],
+            ssl_enabled=config['dashboard']['ssl']['enabled'],
+            cert_file=config['dashboard']['ssl'].get('cert_file'),
+            key_file=config['dashboard']['ssl'].get('key_file')
+        )
+
+        market_indexes = config.get('market_indexes', {})
+
         # Validate
         warnings = risk_config.validate()
         for warning in warnings:
@@ -207,62 +246,14 @@ class TradingConfig:
             api=api_config,
             risk=risk_config,
             strategies=strategy_config,
+            market_hours=market_hours_config,
+            dashboard=dashboard_config,
+            market_indexes=market_indexes,
             raw_config=config
         )
 
         logger.info("✅ Configuration loaded and validated successfully")
         return instance
-
-    @classmethod
-    def _load_legacy_json(cls, json_path: Path) -> 'TradingConfig':
-        """Load from legacy JSON format (backward compatibility)"""
-        import json
-
-        with open(json_path, 'r') as f:
-            legacy_config = json.load(f)
-
-        # Map legacy config to new structure
-        api_config = APIConfig(
-            api_key=legacy_config.get('api', {}).get('zerodha', {}).get('api_key', ''),
-            api_secret=legacy_config.get('api', {}).get('zerodha', {}).get('api_secret', ''),
-            token_file=legacy_config.get('api', {}).get('zerodha', {}).get('token_file', ''),
-            request_delay=legacy_config.get('api', {}).get('zerodha', {}).get('request_delay', 0.25)
-        )
-
-        risk_controls = legacy_config.get('trading', {}).get('risk_controls', {})
-        risk_config = RiskConfig(
-            risk_per_trade_pct=legacy_config.get('trading', {}).get('risk_per_trade', 0.02),
-            stop_loss_pct=0.03,
-            take_profit_pct=0.10,
-            max_daily_loss_pct=0.05,
-            max_position_loss_pct=0.10,
-            max_trades_per_day=risk_controls.get('max_trades_per_day', 150),
-            max_open_positions=risk_controls.get('max_open_positions', 20),
-            max_trades_per_symbol_per_day=risk_controls.get('max_trades_per_symbol_per_day', 8),
-            max_sector_exposure=risk_controls.get('max_sector_exposure', 6),
-            max_consecutive_losses=3,
-            min_position_size_pct=0.10,
-            max_position_size_pct=0.25,
-            max_positions=legacy_config.get('trading', {}).get('max_positions', 25),
-            atr_stop_multiplier=2.0,
-            atr_target_multiplier=3.5,
-            trailing_activation_multiplier=1.5,
-            trailing_stop_multiplier=0.8
-        )
-
-        strategy_config = StrategyConfig(
-            min_confidence=risk_controls.get('min_confidence', 0.70),
-            aggregator_min_agreement=0.4,
-            cooldown_minutes=10,
-            stop_loss_cooldown_minutes=20
-        )
-
-        return cls(
-            api=api_config,
-            risk=risk_config,
-            strategies=strategy_config,
-            raw_config=legacy_config
-        )
 
     @staticmethod
     def _expand_env_vars(config: Any) -> Any:
@@ -292,8 +283,6 @@ class TradingConfig:
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get configuration value by key path (e.g., 'trading.risk.max_positions')
-
-        For backward compatibility with old config access patterns
         """
         keys = key.split('.')
         value = self.raw_config
@@ -309,15 +298,15 @@ class TradingConfig:
         return value if value is not None else default
 
     def get_api_config(self) -> Dict:
-        """Get API configuration as dict (backward compatibility)"""
+        """Get API configuration as dict"""
         return self.api.to_dict()
 
     def get_risk_config(self) -> Dict:
-        """Get risk configuration as dict (backward compatibility)"""
+        """Get risk configuration as dict"""
         return self.risk.to_dict()
 
     def get_strategy_config(self) -> Dict:
-        """Get strategy configuration as dict (backward compatibility)"""
+        """Get strategy configuration as dict"""
         return self.strategies.to_dict()
 
     def get_security_config(self) -> Dict:
@@ -360,32 +349,6 @@ def reload_config():
     return _config
 
 
-# Backward compatibility: Module-level attributes
-# This allows old code like `from config import max_positions` to work
-def _init_module_attrs():
-    """Initialize module-level attributes for backward compatibility"""
-    try:
-        config = get_config()
-
-        # Expose commonly used config as module attributes
-        globals()['max_positions'] = config.risk.max_positions
-        globals()['max_trades_per_day'] = config.risk.max_trades_per_day
-        globals()['max_open_positions'] = config.risk.max_open_positions
-        globals()['risk_per_trade'] = config.risk.risk_per_trade_pct
-        globals()['min_confidence'] = config.strategies.min_confidence
-
-        logger.debug("✅ Module-level config attributes initialized")
-    except Exception as e:
-        logger.warning(f"⚠️  Could not initialize module attributes: {e}")
-
-
-# Initialize on import (but don't fail if config doesn't exist)
-try:
-    _init_module_attrs()
-except Exception:
-    pass  # Config might not exist yet during migration
-
-
 if __name__ == "__main__":
     # Test configuration loading
     print("Testing configuration loading...")
@@ -395,3 +358,5 @@ if __name__ == "__main__":
     print(f"   Risk per trade: {config.risk.risk_per_trade_pct:.1%}")
     print(f"   Min confidence: {config.strategies.min_confidence:.1%}")
     print(f"   Max positions: {config.risk.max_positions}")
+    print(f"   Market Hours: {config.market_hours.start} - {config.market_hours.end}")
+    print(f"   Dashboard Host: {config.dashboard.host}")

@@ -101,26 +101,8 @@ def ensure_dashboard_api_key(interactive: bool = True) -> str:
     Returns:
         API key string (possibly generated for this session)
     """
-    existing = os.getenv("DASHBOARD_API_KEY")
-    key_file = Path('state/dashboard_api_key.txt')
-
     if existing:
-        # Persist the provided key for future runs
-        try:
-            key_file.parent.mkdir(parents=True, exist_ok=True)
-            key_file.write_text(existing.strip())
-        except Exception as exc:
-            logger.warning(f"Could not persist dashboard API key: {exc}")
         return existing
-
-    if key_file.exists():
-        try:
-            persisted = key_file.read_text().strip()
-            if persisted:
-                os.environ["DASHBOARD_API_KEY"] = persisted
-                return persisted
-        except Exception as exc:
-            logger.warning(f"Could not read persisted dashboard API key: {exc}")
 
     def _generate_key() -> str:
         return secrets.token_urlsafe(24)
@@ -138,11 +120,6 @@ def ensure_dashboard_api_key(interactive: bool = True) -> str:
         logger.info("Generated temporary DASHBOARD_API_KEY for this session.")
 
     os.environ["DASHBOARD_API_KEY"] = api_key
-    try:
-        key_file.parent.mkdir(parents=True, exist_ok=True)
-        key_file.write_text(api_key)
-    except Exception as exc:
-        logger.warning(f"Could not persist dashboard API key: {exc}")
     return api_key
 
 
@@ -239,10 +216,13 @@ def run_paper_trading(kite):
     from data.provider import DataProvider
     data_provider = DataProvider(kite=kite, instruments_map=instruments)
     
+    from unified_config import get_config
+    config = get_config()
+    
     trading_system = UnifiedTradingSystem(
         data_provider=data_provider,
         kite=kite,
-        initial_cash=1000000,
+        initial_cash=config.get('trading.capital.initial', 1000000),
         trading_mode='paper'
     )
     
@@ -306,10 +286,13 @@ def run_live_trading(kite):
     from data.provider import DataProvider
     data_provider = DataProvider(kite=kite, instruments_map=instruments)
     
+    from unified_config import get_config
+    config = get_config()
+
     trading_system = UnifiedTradingSystem(
         data_provider=data_provider,
         kite=kite,
-        initial_cash=1000000,
+        initial_cash=config.get('trading.capital.initial', 1000000),
         trading_mode='live'
     )
     
@@ -330,9 +313,12 @@ def run_fno_trading(kite, mode: str, dashboard: Optional[DashboardConnector] = N
         mode: 'paper', 'backtest', or 'live'
         dashboard: Dashboard connector (optional)
     """
+    from unified_config import get_config
+    config = get_config()
+
     # Create portfolio
     fno_portfolio = UnifiedPortfolio(
-        initial_cash=1000000,
+        initial_cash=config.get('trading.capital.initial', 1000000),
         dashboard=dashboard,
         kite=kite,
         trading_mode=mode,
@@ -482,12 +468,13 @@ def main():
                 handler.setLevel(logging.INFO)
 
     # VALIDATION: Check configuration before proceeding
-    from infrastructure.config_validator import validate_configuration
+    # VALIDATION: Check configuration before proceeding
+    from core.config_validator import validate_config
 
     logger.info("🔍 Validating configuration...")
-    config_valid = validate_configuration(trading_mode=args.mode or 'paper', print_report=True)
-
-    if not config_valid:
+    result = validate_config(mode=args.mode or 'paper', verbose=True)
+    
+    if not result.is_valid:
         logger.error("❌ Configuration validation failed - cannot proceed")
         print("\n⚠️  Please fix the configuration errors above before running the system.\n")
         return

@@ -4,7 +4,7 @@
 import logging
 from typing import Dict, Optional, Tuple
 
-from risk_manager import VolatilityRegime
+from core.unified_risk_manager import VolatilityRegime
 
 logger = logging.getLogger('trading_system.portfolio')
 
@@ -29,6 +29,7 @@ class ComplianceMixin:
         3. SEBI position limits (Guide Section 9.2)
         4. F&O ban period check (Guide Section 9.2)
         5. Margin requirements (Guide Section 3.4)
+        6. Sector & Correlation limits (Unified Risk Manager)
 
         Returns:
             (is_valid, rejection_reason, trade_profile)
@@ -67,12 +68,24 @@ class ComplianceMixin:
                 volatility_regime = VolatilityRegime.LOW
 
         # 3. Risk Management Assessment
+        # Prepare existing positions for risk manager (Symbol -> Invested Value)
+        existing_positions_value = {}
+        for pos_sym, pos_data in self.positions.items():
+            # Use invested_amount if available, else calculate
+            val = pos_data.get('invested_amount', 0.0)
+            if val == 0:
+                shares = pos_data.get('shares', 0)
+                price = pos_data.get('entry_price', 0)
+                val = abs(shares * price)
+            existing_positions_value[pos_sym] = val
+
         trade_profile = self.risk_manager.assess_trade_viability(
             symbol=symbol,
             entry_price=entry_price,
             stop_loss=stop_loss,
             take_profit=take_profit,
             lot_size=lot_size,
+            existing_positions=existing_positions_value,
             current_atr=current_atr,
             volatility_regime=volatility_regime
         )

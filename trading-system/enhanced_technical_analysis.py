@@ -119,6 +119,41 @@ class EnhancedTechnicalAnalysis:
 
         return rsi.iloc[-1]
 
+    def calculate_atr(self, df: pd.DataFrame, period: int = 14) -> float:
+        """
+        Calculate ATR (Average True Range)
+        
+        Args:
+            df: DataFrame with high, low, close columns
+            period: ATR period (default 14)
+            
+        Returns:
+            ATR value
+        """
+        if df is None or df.empty or len(df) < period + 2:
+            return 0.0
+            
+        high = df['high']
+        low = df['low']
+        close = df['close']
+        prev_close = close.shift(1)
+        
+        tr1 = high - low
+        tr2 = (high - prev_close).abs()
+        tr3 = (low - prev_close).abs()
+        
+        true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        
+        # Use simple moving average of TR for ATR (standard)
+        # or Wilder's smoothing if preferred, but here matching original logic
+        atr = true_range.rolling(period).mean().iloc[-1]
+        
+        # Handle NaN
+        if pd.isna(atr) or atr == 0:
+             atr = true_range.tail(period).mean()
+             
+        return float(atr) if not pd.isna(atr) else 0.0
+
     def calculate_macd(self, prices: pd.Series) -> Dict[str, float]:
         """
         Calculate MACD (Guide Section 5.3)

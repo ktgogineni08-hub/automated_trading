@@ -18,7 +18,7 @@ import pandas as pd
 import numpy as np
 from kiteconnect import KiteConnect
 
-import config
+from unified_config import get_config
 from utilities.structured_logger import get_logger, log_function_call
 from trading_utils import (
     get_ist_now,
@@ -44,6 +44,10 @@ from utilities.state_managers import TradingStateManager
 from utilities.dashboard import DashboardConnector
 from advanced_market_manager import AdvancedMarketManager
 from core.security_context import SecurityContext
+from core.backtest_engine import BacktestEngine
+from enhanced_technical_analysis import EnhancedTechnicalAnalysis
+from models.ml_predictor import MLPredictor
+from sebi_compliance import SEBIComplianceChecker
 
 logger = get_logger(__name__)
 
@@ -59,6 +63,7 @@ class UnifiedTradingSystem:
         self.kite = kite
         self.trading_mode = trading_mode
         self.config = config_override or {}
+        self.system_config = get_config()
         self.market_regime_detector = MarketRegimeDetector(self.dp)
 
         # Initialize circuit breaker for API calls
@@ -73,13 +78,7 @@ class UnifiedTradingSystem:
         # Initialize enhanced state manager
 
         # Create unified portfolio (silence when fast backtest)
-        global_config = getattr(config, "get_config", None)
-        security_cfg = {}
-        if callable(global_config):
-            try:
-                security_cfg = global_config().get_security_config()
-            except AttributeError:
-                security_cfg = {}
+        security_cfg = self.system_config.get('security', {})
         if isinstance(self.config, dict):
             security_override = self.config.get('security', {})
             if isinstance(security_override, dict):
@@ -101,6 +100,10 @@ class UnifiedTradingSystem:
             silent=bool(self.config.get('fast_backtest')),
             security_context=self.security_context
         )
+
+        self.sebi_compliance = SEBIComplianceChecker(kite=self.kite)
+        self.technical_analyzer = EnhancedTechnicalAnalysis()
+        self.ml_predictor = MLPredictor()
 
         # Load shared F&O portfolio state if available (for paper trading integration)
         if trading_mode == 'paper':
@@ -150,7 +153,7 @@ class UnifiedTradingSystem:
                 EnhancedMomentumStrategy(15, 10, 0.02, 0.005, 35, 65, 15, 25),  # Conservative momentum for live
             ]
             self.aggregator = EnhancedSignalAggregator(min_agreement=0.4)  # Higher agreement
-            self.max_positions = min(max_positions or config.max_positions, 10)  # Conservative position limit
+            self.max_positions = min(max_positions or self.system_config.risk.max_positions, 10)  # Conservative position limit
             self.cooldown_minutes = 30  # Longer cooldown
         else:
             # Full strategies for paper/backtest
@@ -167,11 +170,11 @@ class UnifiedTradingSystem:
             else:
                 self.aggregator = EnhancedSignalAggregator(min_agreement=0.4)
             # Apply profile-specific max positions for paper trading
-            if trading_mode == 'paper' and 'max_positions' in self.config:
-                self.max_positions = self.config['max_positions']
-            else:
-                self.max_positions = max_positions or config.max_positions
-            self.cooldown_minutes = 10
+        if trading_mode == 'paper' and self.config.get('trading_profile') == 'Aggressive':
+            self.max_positions = self.config['max_positions']
+        else:
+            self.max_positions = max_positions or self.system_config.risk.max_positions
+        self.cooldown_minutes = 10
 
         # Initialize aggregator with neutral market bias by default
         if hasattr(self, 'aggregator') and self.aggregator:
@@ -179,16 +182,8 @@ class UnifiedTradingSystem:
 
         self.symbols: List[str] = []
 
-        # Default index tokens for trend analysis (can be overridden via config)
-        default_index_tokens = {
-            "NIFTY": 256265,
-            "BANKNIFTY": 260105,
-            "FINNIFTY": 9992609,
-            "MIDCPNIFTY": 12318082,
-            "SENSEX": 265
-        }
-        configured_index_tokens = {str(k).upper(): v for k, v in self.config.get('index_tokens', {}).items()} if isinstance(self.config, dict) else {}
-        self.market_index_tokens = {**default_index_tokens, **configured_index_tokens}
+        # Default index tokens for trend analysis (loaded from unified config)
+        self.market_index_tokens = self.system_config.market_indexes
 
         self.advanced_market_manager = AdvancedMarketManager(
             self.config,
@@ -199,9 +194,12 @@ class UnifiedTradingSystem:
 
         # Auto-adjustment settings
         self.auto_adjustment_enabled = True
-        self.auto_stop_time = datetime.strptime("15:30", "%H:%M").time()  # 3:30 PM
+        self.auto_stop_time = datetime.strptime(self.system_config.market_hours.end, "%H:%M").time()
         self.auto_stop_executed_today = False
         self.next_day_adjustments = {}  # Store adjustments for next day
+
+        # Initialize Backtest Engine
+        self.backtest_engine = BacktestEngine(self.dp, self.portfolio.initial_cash)
 
         # Persistence helpers
         state_dir = self.config.get('state_dir')
@@ -240,235 +238,13 @@ class UnifiedTradingSystem:
             if s and s not in self.symbols:
                 self.symbols.append(s)
 
-    @staticmethod
-    def _normalize_fast_interval(interval: str) -> str:
-        if not interval:
-            return '5minute'
-        interval = interval.lower().strip()
-        mapping = {
-            '5': '5minute', '5m': '5minute', '5min': '5minute', '5minute': '5minute',
-            '10': '10minute', '10m': '10minute', '10min': '10minute', '10minute': '10minute',
-            '15': '15minute', '15m': '15minute', '15min': '15minute', '15minute': '15minute',
-            '30': '30minute', '30m': '30minute', '30min': '30minute', '30minute': '30minute',
-            '60': '60minute', '60m': '60minute', '60min': '60minute', '1h': '60minute', '1hour': '60minute', '60minute': '60minute'
-        }
-        return mapping.get(interval, '5minute')
-
-    @staticmethod
-    def _interval_to_pandas(interval: str) -> str:
-        return {
-            '5minute': '5T',
-            '10minute': '10T',
-            '15minute': '15T',
-            '30minute': '30T',
-            '60minute': '60T'
-        }.get(interval, '5T')
-
-
     def run_fast_backtest(self, interval: str = "5minute", days: int = 30) -> None:
-        """One-pass backtest over historical bars; prints aggregate summary only."""
-        interval = self._normalize_fast_interval(interval)
-        pandas_interval = self._interval_to_pandas(interval)
+        """
+        Run high-performance vectorized backtest
+        """
+        self.backtest_engine.run_fast_backtest(self.symbols, interval, days)
 
-        logger.info("⚡ Running fast backtest (one-pass)…")
-        start_time = time.time()
-        trades_before = self.portfolio.trades_count
 
-        min_conf = float(self.config.get('fast_min_confidence', 0.65))
-        top_n = int(self.config.get('fast_top_n', 1))
-        max_pos_cap = int(self.config.get('fast_max_positions', min(self.max_positions, 8)))
-
-        df_map = {}
-        for sym in self.symbols:
-            try:
-                df = self.dp.fetch_with_retry(sym, interval=interval, days=days)
-                if df.empty:
-                    continue
-                idx = df.index
-                if isinstance(idx, pd.DatetimeIndex) and idx.tz is not None:
-                    try:
-                        idx = idx.tz_convert('Asia/Kolkata').tz_localize(None)
-                    except Exception:
-                        try:
-                            idx = idx.tz_localize(None)
-                        except Exception:
-                            pass
-                    df.index = idx
-                if isinstance(df.index, pd.DatetimeIndex):
-                    df.index = pd.DatetimeIndex(df.index)
-                for col in ("open", "high", "low", "close"):
-                    if col not in df.columns:
-                        raise ValueError("missing OHLC data")
-                prev_close = df['close'].shift(1)
-                tr = pd.concat([
-                    (df['high'] - df['low']).abs(),
-                    (df['high'] - prev_close).abs(),
-                    (df['low'] - prev_close).abs()
-                ], axis=1).max(axis=1)
-                df['ATR'] = tr.rolling(14).mean()
-                df_map[sym] = df
-            except Exception as e:
-                logger.error(f"Error processing {sym} for backtest: {e}")
-                continue
-        if not df_map:
-            logger.error("❌ No historical data available for fast backtest")
-            return
-
-        all_times = sorted({pd.Timestamp(ts) for df in df_map.values() for ts in df.index})
-        if not all_times:
-            logger.error("❌ No timestamps found for fast backtest")
-            return
-
-        resampled_prices = {sym: df['close'].copy() for sym, df in df_map.items()}
-        resampled_atr = {sym: df['ATR'].copy() for sym, df in df_map.items()}
-        if interval != '5minute':
-            try:
-                resampled_prices = {sym: series.resample(pandas_interval).last().dropna() for sym, series in resampled_prices.items()}
-                resampled_atr = {sym: series.resample(pandas_interval).last().dropna() for sym, series in resampled_atr.items()}
-                all_times = sorted({pd.Timestamp(ts) for series in resampled_prices.values() for ts in series.index})
-            except Exception as exc:
-                logger.warning(f"Resample failed ({exc}), falling back to raw interval")
-                resampled_prices = {sym: df['close'] for sym, df in df_map.items()}
-                resampled_atr = {sym: df['ATR'] for sym, df in df_map.items()}
-        else:
-            resampled_prices = {sym: df['close'] for sym, df in df_map.items()}
-            resampled_atr = {sym: df['ATR'] for sym, df in df_map.items()}
-
-        for ts_idx, ts in enumerate(all_times[:-1]):  # Exclude last timestamp to avoid future data
-            prices = {}
-            atr_snapshot = {}
-            for sym, series in resampled_prices.items():
-                if ts in series.index:
-                    try:
-                        prices[sym] = float(series.loc[ts])
-                        atr_val = resampled_atr.get(sym, pd.Series()).get(ts)
-                        if atr_val is not None and not pd.isna(atr_val):
-                            atr_snapshot[sym] = float(atr_val)
-                    except Exception:
-                        continue
-
-            for sym, pos in list(self.portfolio.positions.items()):
-                if sym not in prices:
-                    continue
-                cp = prices[sym]
-                atr_val = atr_snapshot.get(sym)
-                if atr_val and cp > pos['entry_price']:
-                    gain = cp - pos['entry_price']
-                    if gain >= atr_val * self.portfolio.trailing_activation_multiplier:
-                        trailing_stop = cp - atr_val * self.portfolio.trailing_stop_multiplier
-                        trailing_stop = max(trailing_stop, pos['entry_price'] * 1.001)
-                        if trailing_stop > pos['stop_loss']:
-                            pos['stop_loss'] = trailing_stop
-                if cp <= pos.get('stop_loss', -1) or cp >= pos.get('take_profit', 10**12):
-                    self.portfolio.execute_trade(sym, int(pos['shares']), cp, 'sell', ts, pos.get('confidence', 0.5), pos.get('sector', 'Other'))
-
-            sell_queue = []
-            buy_candidates = []
-            for sym, df in df_map.items():
-                if sym not in prices:
-                    continue
-                try:
-                    # CRITICAL FIX: Use data strictly BEFORE current timestamp for signal generation
-                    upto = df[df.index < ts]
-                except Exception:
-                    continue
-                if len(upto) < 50:
-                    continue
-                current_price = prices[sym]
-                strategy_signals = []
-                for strategy in self.strategies:
-                    strategy_signals.append(strategy.generate_signals(upto, sym))
-
-                # Check if this is an exit for existing position
-                is_exit_signal = sym in self.portfolio.positions
-
-                aggregated = self.aggregator.aggregate_signals(strategy_signals, sym, is_exit=is_exit_signal)
-                conf = float(aggregated.get('confidence', 0.0) or 0.0)
-                if aggregated['action'] == 'sell' and sym in self.portfolio.positions:
-                    sell_queue.append(sym)
-                elif aggregated['action'] == 'buy' and sym not in self.portfolio.positions and conf >= min_conf:
-                    buy_candidates.append((sym, conf, current_price, atr_snapshot.get(sym)))
-
-            for sym in sell_queue:
-                cp = prices.get(sym)
-                if cp is None:
-                    continue
-                shares = int(self.portfolio.positions[sym]['shares']) if sym in self.portfolio.positions else 0
-                if shares > 0:
-                    self.portfolio.execute_trade(sym, shares, cp, 'sell', ts, 0.5, self.get_sector(sym))
-
-            buy_candidates.sort(key=lambda x: x[1], reverse=True)
-            for sym, conf, cp, atr_val in buy_candidates[:top_n]:
-                if len(self.portfolio.positions) >= min(max_pos_cap, self.max_positions):
-                    break
-                position_pct = self.portfolio.min_position_size
-                if conf >= 0.7:
-                    position_pct = self.portfolio.max_position_size
-                elif conf >= 0.5:
-                    position_pct = (self.portfolio.max_position_size + self.portfolio.min_position_size) / 2
-                position_value = self.portfolio.cash * position_pct
-                shares = int(position_value // cp)
-                if shares > 0:
-                    self.portfolio.execute_trade(sym, shares, cp, 'buy', ts, conf, self.get_sector(sym), atr=atr_val)
-
-        last_prices = {sym: safe_float_conversion(df['close'].iloc[-1]) for sym, df in df_map.items() if not df.empty}
-        for sym, pos in list(self.portfolio.positions.items()):
-            cp = last_prices.get(sym, pos['entry_price'])
-            self.portfolio.execute_trade(sym, int(pos['shares']), cp, 'sell', all_times[-1], pos.get('confidence', 0.5), pos.get('sector', 'Other'))
-
-        final_value = self.portfolio.calculate_total_value(last_prices)
-        elapsed = time.time() - start_time
-
-        trades = self.portfolio.trades_count - trades_before
-        wins = getattr(self.portfolio, 'winning_trades', 0)
-        win_rate = (wins / self.portfolio.trades_count * 100) if self.portfolio.trades_count else 0.0
-        logger.info("===== FAST BACKTEST SUMMARY =====")
-        logger.info(f"Symbols: {len(self.symbols)} | Bars: {len(all_times)} | Trades: {trades}")
-        logger.info(f"Final Portfolio Value: ₹{final_value:,.2f}")
-        logger.info(f"Total P&L: ₹{self.portfolio.total_pnl:,.2f} | Win rate: {win_rate:.1f}%")
-        logger.info(f"Best Trade: ₹{self.portfolio.best_trade:,.2f} | Worst Trade: ₹{self.portfolio.worst_trade:,.2f}")
-        logger.info(f"Elapsed: {elapsed:.2f}s")
-
-        summary = {
-            'timestamp': datetime.now().isoformat(),
-            'mode': 'fast_backtest',
-            'interval': interval,
-            'days': days,
-            'symbols': len(self.symbols),
-            'bars': len(all_times),
-            'trades': trades,
-            'win_rate': win_rate,
-            'final_value': final_value,
-            'total_pnl': self.portfolio.total_pnl,
-            'best_trade': self.portfolio.best_trade,
-            'worst_trade': self.portfolio.worst_trade,
-            'settings': {
-                'min_confidence': min_conf,
-                'top_n': top_n,
-                'max_positions': max_pos_cap
-            }
-        }
-        results_dir = Path('backtest_results')
-        results_dir.mkdir(exist_ok=True)
-        summary_path = results_dir / f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        summary_path.write_text(json.dumps(summary, indent=2))
-        logger.info(f"Summary saved to {summary_path}")
-
-    def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> float:
-        if df is None or df.empty or len(df) < period + 2:
-            return 0.0
-        high = df['high']
-        low = df['low']
-        close = df['close']
-        prev_close = close.shift(1)
-        tr1 = high - low
-        tr2 = (high - prev_close).abs()
-        tr3 = (low - prev_close).abs()
-        true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-        atr = safe_float_conversion(true_range.rolling(period).mean().iloc[-1])
-        if is_zero(atr):
-            atr = safe_float_conversion(true_range.tail(period).mean(), 0.0)
-        return atr
 
     def _restore_saved_state(self) -> None:
         saved_state = self.state_manager.load_state()
@@ -1422,8 +1198,23 @@ class UnifiedTradingSystem:
                         logger.info(f"    {symbol}: Entry signal confidence {aggregated['confidence']:.1%} below threshold {min_confidence:.1%} (new position only)")
                         continue
 
-                    aggregated['atr'] = self._calculate_atr(df)
+                    aggregated['atr'] = self.technical_analyzer.calculate_atr(df)
                     aggregated['last_close'] = current_price
+                    
+                    # ML Enhancement
+                    if self.ml_predictor.model:
+                        ml_pred = self.ml_predictor.predict(df)
+                        aggregated['ml_probability'] = ml_pred['probability']
+                        aggregated['ml_direction'] = 'UP' if ml_pred['direction'] == 1 else 'DOWN'
+                        
+                        # Boost confidence if ML agrees with signal
+                        if (aggregated['action'] == 'buy' and ml_pred['direction'] == 1) or \
+                           (aggregated['action'] == 'sell' and ml_pred['direction'] == 0):
+                            if ml_pred['confidence'] > 0.6: # Only boost if ML is confident
+                                boost = 0.1
+                                aggregated['confidence'] = min(1.0, aggregated['confidence'] + boost)
+                                aggregated['reasons'].append(f"ML Confirmed ({ml_pred['probability']:.0%})")
+                    
                     signals[symbol] = aggregated
 
                     # Send signal to dashboard
